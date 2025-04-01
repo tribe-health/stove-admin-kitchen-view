@@ -14,6 +14,7 @@ export interface DeliveryLocation {
   longitude?: number;
   start_open_time?: string;
   end_open_time?: string;
+  provider_id: string; // Added provider_id as required field
 }
 
 interface DeliveryLocationsState {
@@ -70,9 +71,10 @@ export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, ge
       try {
         set({ isLoading: true, error: null });
         
+        // Insert a single location, not an array
         const { data, error } = await supabase
           .from('delivery_location')
-          .insert([location])
+          .insert(location)
           .select()
           .single();
         

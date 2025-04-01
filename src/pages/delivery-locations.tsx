@@ -1,7 +1,6 @@
 
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
-import { AdminLayout } from '@/components/admin-layout';
 import { useDeliveryLocations } from '@/hooks/use-delivery-locations';
 import { DeliveryLocationsMap } from '@/components/delivery-locations/delivery-locations-map';
 import { DeliveryLocationsTable } from '@/components/delivery-locations/delivery-locations-table';
@@ -15,8 +14,15 @@ export default function DeliveryLocations() {
     isLoading, 
     error, 
     formattedWeekRange,
-    fetchLocations 
+    fetchLocations,
+    addLocation 
   } = useDeliveryLocations();
+
+  // Handle adding a new location (placeholder for now)
+  const handleAddLocation = () => {
+    toast.info('Add location feature coming soon');
+    // In a real implementation, this would open a modal or form to add a new location
+  };
 
   // Handle errors with toast
   if (error) {
@@ -34,7 +40,7 @@ export default function DeliveryLocations() {
             Manage delivery locations for week of {formattedWeekRange}
           </p>
         </div>
-        <Button onClick={() => toast.info('Add location feature coming soon')}>
+        <Button onClick={handleAddLocation}>
           <Plus className="h-4 w-4 mr-2" />
           Add Location
         </Button>
