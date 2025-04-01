@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,6 +62,14 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Custom colors for FoodOnTheStove
+				stove: {
+					blue: '#1e4597',
+					gold: '#d4af37',
+					red: '#e63946',
+					gray: '#333333',
+					lightgray: '#f8f9fa'
 				}
 			},
 			borderRadius: {
