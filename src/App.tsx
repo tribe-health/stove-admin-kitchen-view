@@ -12,9 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { Auth } from "./pages/auth";
 import Users from "./pages/users";
-
-// Add this import for the sites page
 import Sites from "./pages/sites";
+import { AdminLayout } from "./components/admin-layout";
 
 function App() {
   const [authChecked, setAuthChecked] = useState(false);
@@ -37,12 +36,15 @@ function App() {
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/orders" element={<Orders />} />
-        <Route path="/products" element={<Products />} />
-        <Route path="/sites" element={<Sites />} />
-        <Route path="/users" element={<Users />} />
         <Route path="/auth" element={<Auth />} />
+        
+        {/* Admin routes with AdminLayout */}
+        <Route path="/dashboard" element={<AdminLayout><Dashboard /></AdminLayout>} />
+        <Route path="/orders" element={<AdminLayout><Orders /></AdminLayout>} />
+        <Route path="/products" element={<AdminLayout><Products /></AdminLayout>} />
+        <Route path="/sites" element={<AdminLayout><Sites /></AdminLayout>} />
+        <Route path="/users" element={<AdminLayout><Users /></AdminLayout>} />
+        
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

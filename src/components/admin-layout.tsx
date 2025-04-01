@@ -1,13 +1,17 @@
 
-import { useEffect } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { ReactNode, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { AdminHeader } from "./admin-header";
 import { AdminSidebar } from "./admin-sidebar";
 import { useSidebarStore } from "@/store/use-sidebar-store";
 import { useAuthStore } from "@/store/use-auth-store";
 import { cn } from "@/lib/utils";
 
-export function AdminLayout() {
+interface AdminLayoutProps {
+  children: ReactNode;
+}
+
+export function AdminLayout({ children }: AdminLayoutProps) {
   const { collapsed } = useSidebarStore();
   const { isLoggedIn } = useAuthStore();
   const navigate = useNavigate();
@@ -29,7 +33,7 @@ export function AdminLayout() {
       >
         <AdminHeader />
         <main className="flex-1 p-4 sm:p-6 lg:p-8">
-          <Outlet />
+          {children}
         </main>
       </div>
     </div>
