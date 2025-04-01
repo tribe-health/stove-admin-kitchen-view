@@ -123,7 +123,7 @@ export default function Orders() {
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Statuses</SelectItem>
+              <SelectItem value="all">All Statuses</SelectItem>
               <SelectItem value="placed">Placed</SelectItem>
               <SelectItem value="in_progress">In Progress</SelectItem>
               <SelectItem value="made">Made</SelectItem>
