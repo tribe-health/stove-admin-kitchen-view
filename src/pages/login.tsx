@@ -17,11 +17,20 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuthStore } from "@/store/use-auth-store";
 import { LoginFormValues, loginSchema } from "@/lib/validations/auth-schema";
 import { toast } from "sonner";
+import { authService } from "@/lib/auth-service";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { login } = useAuthStore();
+  const { isLoggedIn } = useAuthStore();
+
+  // Redirect if already logged in
+  if (isLoggedIn) {
+    navigate("/dashboard");
+  }
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -33,23 +42,15 @@ export default function Login() {
 
   async function onSubmit(data: LoginFormValues) {
     setIsLoading(true);
+    setError(null);
     
     try {
-      // This is a mock login for demo purposes
-      // In a real app, you would authenticate against Supabase
-      setTimeout(() => {
-        login({
-          id: "1",
-          email: data.email,
-          firstName: "Admin",
-          lastName: "User",
-          role: "admin",
-        });
-        toast.success("Login successful");
-        navigate("/dashboard");
-      }, 1000);
-    } catch (error) {
+      await authService.login(data);
+      toast.success("Login successful");
+      navigate("/dashboard");
+    } catch (error: any) {
       console.error(error);
+      setError(error?.message || "Failed to login. Please check your credentials.");
       toast.error("Failed to login. Please check your credentials.");
     } finally {
       setIsLoading(false);
@@ -77,6 +78,13 @@ export default function Login() {
         <p className="text-muted-foreground mb-8">
           Welcome back! Please sign in to continue.
         </p>
+
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -123,7 +131,7 @@ export default function Login() {
         </Form>
 
         <div className="mt-8 text-center text-sm text-muted-foreground">
-          <p>Demo credentials: admin@foodonthestove.org / password123</p>
+          <p>Contact your administrator if you need access to the system.</p>
         </div>
       </div>
 

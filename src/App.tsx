@@ -11,15 +11,72 @@ import Products from "./pages/products";
 import Login from "./pages/login";
 import NotFound from "./pages/NotFound";
 import { useAuthStore } from "./store/use-auth-store";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "./integrations/supabase/client";
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  const { isLoggedIn } = useAuthStore();
+  const { isLoggedIn, login, logout } = useAuthStore();
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Apply the theme on app load
+  // Check for existing session
   useEffect(() => {
+    const initializeAuth = async () => {
+      setIsLoading(true);
+      
+      // Set up auth state listener
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          if (session?.user) {
+            // Fetch user details from your users table
+            const { data: userData } = await supabase
+              .from('users')
+              .select('first_name, last_name')
+              .eq('id', session.user.id)
+              .single();
+            
+            login({
+              id: session.user.id,
+              email: session.user.email || '',
+              firstName: userData?.first_name || 'Admin',
+              lastName: userData?.last_name || 'User',
+              role: 'admin', // You may want to fetch actual roles
+            });
+          } else {
+            logout();
+          }
+        }
+      );
+      
+      // Check for existing session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        // Fetch user details from your users table
+        const { data: userData } = await supabase
+          .from('users')
+          .select('first_name, last_name')
+          .eq('id', session.user.id)
+          .single();
+        
+        login({
+          id: session.user.id,
+          email: session.user.email || '',
+          firstName: userData?.first_name || 'Admin',
+          lastName: userData?.last_name || 'User',
+          role: 'admin', // You may want to fetch actual roles
+        });
+      }
+      
+      setIsLoading(false);
+      
+      return () => {
+        subscription.unsubscribe();
+      };
+    };
+    
+    initializeAuth();
+
     // Apply dark mode if saved in store
     const isDark = localStorage.getItem('theme-storage') 
       ? JSON.parse(localStorage.getItem('theme-storage') || '{}').state?.theme === 'dark'
@@ -28,7 +85,15 @@ const App = () => {
     if (isDark) {
       document.documentElement.classList.add('dark');
     }
-  }, []);
+  }, [login, logout]);
+
+  if (isLoading) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>

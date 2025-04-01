@@ -14,16 +14,23 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/store/use-auth-store";
 import { useNavigate } from "react-router-dom";
+import { authService } from "@/lib/auth-service";
+import { toast } from "sonner";
 
 export function AdminHeader() {
   const { toggleMobileOpen } = useSidebarStore();
   const isMobile = useIsMobile();
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast.error('Failed to log out.');
+    }
   };
 
   return (
