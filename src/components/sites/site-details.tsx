@@ -50,6 +50,12 @@ interface Station {
   site_id: string;
   created_at: string;
   number?: number;
+  address1?: string;
+  latitude?: number;
+  longitude?: number;
+  registration_code?: string;
+  description?: string;
+  long_description?: string;
 }
 
 export interface SiteDetailsProps {

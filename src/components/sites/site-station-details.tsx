@@ -6,53 +6,29 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
-interface SiteStationDetailsProps {
-  siteId: string;
+interface Station {
+  id: string;
+  name: string;
+  address: string;
+  address1?: string;
+  city: string;
+  state: string;
+  zip: string;
+  site_id: string;
+  created_at: string;
+  number?: number;
+  latitude?: number;
+  longitude?: number;
+  registration_code?: string;
+  description?: string;
+  long_description?: string;
 }
 
-export function SiteStationDetails({ siteId }: SiteStationDetailsProps) {
-  const [station, setStation] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+interface SiteStationDetailsProps {
+  station: Station;
+}
 
-  useEffect(() => {
-    if (siteId) {
-      fetchStationDetails();
-    }
-  }, [siteId]);
-
-  async function fetchStationDetails() {
-    try {
-      setLoading(true);
-      
-      const { data, error } = await supabase
-        .from('stations')
-        .select('*')
-        .eq('site_id', siteId)
-        .single();
-
-      if (error) throw error;
-      setStation(data);
-    } catch (error) {
-      console.error('Error fetching station details:', error);
-      toast({
-        variant: "destructive",
-        title: "Error fetching station details",
-        description: (error as Error).message,
-      });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="flex justify-center py-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
+export function SiteStationDetails({ station }: SiteStationDetailsProps) {
   if (!station) {
     return (
       <Card>
