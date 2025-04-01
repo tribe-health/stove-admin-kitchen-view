@@ -12,27 +12,38 @@ import {
   Menu, 
   X, 
   Package, 
-  Building
+  Building,
+  ChevronRight,
+  ChevronLeft
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { useEffect } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  Sidebar,
+  SidebarHeader,
+  SidebarContent,
+  SidebarFooter,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+} from "@/components/ui/sidebar";
 
 interface SidebarLinkProps {
   to: string;
   icon: React.ReactNode;
   label: string;
-  collapsed: boolean;
+  expanded: boolean;
 }
 
-function SidebarLink({ to, icon, label, collapsed }: SidebarLinkProps) {
+function SidebarLink({ to, icon, label, expanded }: SidebarLinkProps) {
   return (
     <NavLink
       to={to}
       className={({ isActive }) =>
         cn(
           "flex items-center gap-3 rounded-lg px-3 py-2 transition-all",
-          collapsed ? "justify-center" : "",
+          expanded ? "" : "justify-center",
           isActive
             ? "bg-sidebar-primary text-sidebar-primary-foreground"
             : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
@@ -40,13 +51,13 @@ function SidebarLink({ to, icon, label, collapsed }: SidebarLinkProps) {
       }
     >
       {icon}
-      {!collapsed && <span>{label}</span>}
+      {expanded && <span>{label}</span>}
     </NavLink>
   );
 }
 
 export function AdminSidebar() {
-  const { collapsed, mobileOpen, toggleMobileOpen, setMobileOpen } = useSidebarStore();
+  const { expanded, mobileOpen, toggleMobileOpen, setMobileOpen, toggleExpanded, setExpanded } = useSidebarStore();
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -69,14 +80,16 @@ export function AdminSidebar() {
       <div
         className={cn(
           "fixed top-0 bottom-0 left-0 z-50 flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out",
-          collapsed ? "w-16" : "w-64",
+          expanded ? "w-64" : "w-16",
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        <div className={cn("flex h-14 items-center border-b border-sidebar-border px-4", 
-          collapsed ? "justify-center" : "justify-between"
+        {/* Sidebar Header */}
+        <div className={cn(
+          "flex h-14 items-center border-b border-sidebar-border px-4", 
+          expanded ? "justify-between" : "justify-center"
         )}>
-          {!collapsed && (
+          {expanded ? (
             <div className="flex items-center gap-2">
               <img 
                 src="/lovable-uploads/c87a99a7-e0cf-4c42-92fb-67cfae755328.png" 
@@ -85,7 +98,16 @@ export function AdminSidebar() {
               />
               <span className="font-semibold text-sidebar-foreground">FoodOnTheStove</span>
             </div>
+          ) : (
+            <div className="flex items-center justify-center">
+              <img 
+                src="/lovable-uploads/c87a99a7-e0cf-4c42-92fb-67cfae755328.png" 
+                alt="FoodOnTheStove" 
+                className="h-8 w-8 object-contain" 
+              />
+            </div>
           )}
+          
           {isMobile ? (
             <Button 
               variant="ghost" 
@@ -96,62 +118,61 @@ export function AdminSidebar() {
               <X className="h-5 w-5" />
             </Button>
           ) : (
-            !collapsed && (
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={() => useSidebarStore.getState().toggleCollapsed()}
-                className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-            )
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={toggleExpanded}
+              className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              {expanded ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+            </Button>
           )}
         </div>
 
+        {/* Sidebar Content */}
         <div className="flex-1 overflow-auto px-3 py-4">
           <nav className="flex flex-col gap-2">
             <SidebarLink
               to="/dashboard"
               icon={<Home className="h-5 w-5" />}
               label="Dashboard"
-              collapsed={collapsed}
+              expanded={expanded}
             />
             <SidebarLink
               to="/orders"
               icon={<ListOrdered className="h-5 w-5" />}
               label="Orders"
-              collapsed={collapsed}
+              expanded={expanded}
             />
             <SidebarLink
               to="/products"
               icon={<Package className="h-5 w-5" />}
               label="Products"
-              collapsed={collapsed}
+              expanded={expanded}
             />
             <SidebarLink
               to="/users"
               icon={<Users className="h-5 w-5" />}
               label="Users"
-              collapsed={collapsed}
+              expanded={expanded}
             />
             <SidebarLink
               to="/sites"
               icon={<Building className="h-5 w-5" />}
               label="Sites"
-              collapsed={collapsed}
+              expanded={expanded}
             />
             <SidebarLink
               to="/delivery-locations"
               icon={<MapPin className="h-5 w-5" />}
               label="Delivery Locations"
-              collapsed={collapsed}
+              expanded={expanded}
             />
             <SidebarLink
               to="/settings"
               icon={<Settings className="h-5 w-5" />}
               label="Settings"
-              collapsed={collapsed}
+              expanded={expanded}
             />
           </nav>
         </div>

@@ -1,5 +1,5 @@
 
-import { Menu, Bell, User } from "lucide-react";
+import { Menu, Bell, User, PanelLeft } from "lucide-react";
 import { Button } from "./ui/button";
 import { ThemeToggle } from "./theme-toggle";
 import { useSidebarStore } from "@/store/use-sidebar-store";
@@ -18,7 +18,7 @@ import { authService } from "@/lib/auth-service";
 import { toast } from "sonner";
 
 export function AdminHeader() {
-  const { toggleMobileOpen } = useSidebarStore();
+  const { toggleMobileOpen, toggleExpanded } = useSidebarStore();
   const isMobile = useIsMobile();
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -35,7 +35,7 @@ export function AdminHeader() {
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:px-6 lg:px-8">
-      {isMobile && (
+      {isMobile ? (
         <Button 
           variant="ghost" 
           size="icon" 
@@ -44,6 +44,16 @@ export function AdminHeader() {
         >
           <Menu className="h-5 w-5" />
           <span className="sr-only">Toggle menu</span>
+        </Button>
+      ) : (
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="hidden lg:flex" 
+          onClick={toggleExpanded}
+        >
+          <PanelLeft className="h-5 w-5" />
+          <span className="sr-only">Toggle sidebar</span>
         </Button>
       )}
 

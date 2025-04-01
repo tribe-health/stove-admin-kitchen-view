@@ -12,7 +12,7 @@ interface AdminLayoutProps {
 }
 
 export function AdminLayout({ children }: AdminLayoutProps) {
-  const { collapsed } = useSidebarStore();
+  const { expanded } = useSidebarStore();
   const { isLoggedIn } = useAuthStore();
   const navigate = useNavigate();
 
@@ -28,7 +28,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       <div
         className={cn(
           "flex flex-col flex-1 transition-all duration-300",
-          collapsed ? "lg:ml-16" : "lg:ml-64"
+          expanded ? "lg:ml-64" : "lg:ml-16"
         )}
       >
         <AdminHeader />

@@ -3,22 +3,22 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 interface SidebarState {
-  collapsed: boolean;
+  expanded: boolean;
   mobileOpen: boolean;
-  toggleCollapsed: () => void;
+  toggleExpanded: () => void;
   toggleMobileOpen: () => void;
-  setCollapsed: (collapsed: boolean) => void;
+  setExpanded: (expanded: boolean) => void;
   setMobileOpen: (open: boolean) => void;
 }
 
 export const useSidebarStore = create<SidebarState>()(
   persist(
     (set) => ({
-      collapsed: false,
+      expanded: true,
       mobileOpen: false,
-      toggleCollapsed: () => set((state) => ({ collapsed: !state.collapsed })),
+      toggleExpanded: () => set((state) => ({ expanded: !state.expanded })),
       toggleMobileOpen: () => set((state) => ({ mobileOpen: !state.mobileOpen })),
-      setCollapsed: (collapsed) => set({ collapsed }),
+      setExpanded: (expanded) => set({ expanded }),
       setMobileOpen: (mobileOpen) => set({ mobileOpen }),
     }),
     {
