@@ -59,4 +59,29 @@ export const authService = {
     
     return data.session;
   },
+
+  async updateUserProfile(userId: string, updates: { first_name?: string; last_name?: string }) {
+    const { data, error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', userId);
+      
+    if (error) {
+      throw error;
+    }
+    
+    // Update the local store
+    if (updates.first_name || updates.last_name) {
+      const currentUser = useAuthStore.getState().user;
+      if (currentUser) {
+        useAuthStore.getState().login({
+          ...currentUser,
+          firstName: updates.first_name || currentUser.firstName,
+          lastName: updates.last_name || currentUser.lastName,
+        });
+      }
+    }
+    
+    return data;
+  },
 };
