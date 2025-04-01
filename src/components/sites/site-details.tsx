@@ -1,61 +1,99 @@
 
-import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteStationDetails } from "./site-station-details";
 
-interface SiteDetailsProps {
-  siteId: string;
-  onClose: () => void;
-  onSiteUpdated: () => void;
+interface Site {
+  id: string;
+  name: string;
+  description: string;
+  code: string;
+  site_type_id: string;
+  organization_id: string;
+  created_at: string;
+  updated_at: string;
 }
 
-export function SiteDetails({ siteId, onClose, onSiteUpdated }: SiteDetailsProps) {
-  const [site, setSite] = useState<any | null>(null);
+interface SiteType {
+  id: string;
+  name: string;
+  description: string;
+  managing_table: string | null;
+}
+
+interface Organization {
+  id: string;
+  name: string;
+  description: string;
+}
+
+interface SiteDetailsProps {
+  siteId: string | null;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function SiteDetails({ siteId, isOpen, onClose }: SiteDetailsProps) {
+  const [site, setSite] = useState<Site | null>(null);
+  const [siteType, setSiteType] = useState<SiteType | null>(null);
+  const [organization, setOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
-  const [relatedEntities, setRelatedEntities] = useState<any | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
-    if (siteId) {
-      fetchSiteDetails();
+    if (siteId && isOpen) {
+      fetchSiteDetails(siteId);
+    } else {
+      setSite(null);
+      setSiteType(null);
+      setOrganization(null);
     }
-  }, [siteId]);
+  }, [siteId, isOpen]);
 
-  async function fetchSiteDetails() {
+  async function fetchSiteDetails(id: string) {
     try {
       setLoading(true);
       
-      // Fetch the site with related data
       const { data: siteData, error: siteError } = await supabase
-        .from('site')
-        .select(`
-          *,
-          organization:organization_id (*),
-          site_type:site_type_id (*)
-        `)
-        .eq('id', siteId)
+        .from('sites')
+        .select('*')
+        .eq('id', id)
         .single();
 
       if (siteError) throw siteError;
       setSite(siteData);
 
-      // Fetch specialized data based on site type
-      if (siteData.site_type.managing_table) {
-        const { data: specializedData, error: specializedError } = await supabase
-          .from(siteData.site_type.managing_table)
+      if (siteData.site_type_id) {
+        const { data: typeData, error: typeError } = await supabase
+          .from('site_types')
           .select('*')
-          .eq('site_id', siteId);
+          .eq('id', siteData.site_type_id)
+          .single();
+          
+        if (typeError) throw typeError;
+        setSiteType(typeData);
+      }
 
-        if (specializedError) throw specializedError;
-        setRelatedEntities(specializedData);
+      if (siteData.organization_id) {
+        const { data: orgData, error: orgError } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('id', siteData.organization_id)
+          .single();
+          
+        if (orgError) throw orgError;
+        setOrganization(orgData);
       }
     } catch (error) {
       console.error('Error fetching site details:', error);
@@ -69,133 +107,65 @@ export function SiteDetails({ siteId, onClose, onSiteUpdated }: SiteDetailsProps
     }
   }
 
-  if (!siteId) return null;
+  if (!isOpen) return null;
 
   return (
-    <Dialog open={!!siteId} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          </div>
-        ) : site ? (
-          <>
-            <DialogHeader>
-              <DialogTitle className="text-2xl flex items-center gap-3">
-                {site.name}
-                {site.site_type?.name && (
-                  <Badge variant="outline">{site.site_type.name}</Badge>
-                )}
-              </DialogTitle>
-              <DialogDescription>
-                Site Code: <span className="font-mono">{site.data?.code || "N/A"}</span>
-              </DialogDescription>
-            </DialogHeader>
+    <Dialog open={isOpen} onOpenChange={() => onClose()}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{loading ? "Loading Site..." : site?.name}</DialogTitle>
+          <DialogDescription>
+            View complete details for this site.
+          </DialogDescription>
+        </DialogHeader>
 
-            <div className="mt-4">
-              <Tabs defaultValue="details">
-                <TabsList>
-                  <TabsTrigger value="details">Details</TabsTrigger>
-                  {site.site_type?.key === 'station' && (
-                    <TabsTrigger value="station">Station Info</TabsTrigger>
-                  )}
-                  <TabsTrigger value="organization">Organization</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="details" className="mt-4 space-y-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Site Information</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid gap-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground">Name</p>
-                          <p>{site.name}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground">Type</p>
-                          <p>{site.site_type?.name || "Unknown"}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground">Code</p>
-                          <p className="font-mono">{site.data?.code || "N/A"}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground">Created</p>
-                          <p>{new Date(site.created_at).toLocaleDateString()}</p>
-                        </div>
-                      </div>
-                      
-                      {site.data && Object.keys(site.data).length > 0 && (
-                        <>
-                          <Separator />
-                          <div>
-                            <h4 className="text-sm font-medium text-muted-foreground mb-2">Additional Data</h4>
-                            <pre className="bg-muted p-2 rounded-md overflow-auto text-xs">
-                              {JSON.stringify(site.data, null, 2)}
-                            </pre>
-                          </div>
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-                
-                {site.site_type?.key === 'station' && (
-                  <TabsContent value="station" className="mt-4">
-                    <SiteStationDetails siteId={siteId} />
-                  </TabsContent>
-                )}
-                
-                <TabsContent value="organization" className="mt-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Organization Details</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid gap-4">
-                      {site.organization ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm font-medium text-muted-foreground">Name</p>
-                            <p>{site.organization.name}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-muted-foreground">Description</p>
-                            <p>{site.organization.description || "No description available"}</p>
-                          </div>
-                          {site.organization.web_url && (
-                            <div>
-                              <p className="text-sm font-medium text-muted-foreground">Website</p>
-                              <a href={site.organization.web_url} target="_blank" rel="noopener noreferrer" 
-                                className="text-blue-500 hover:underline">
-                                {site.organization.web_url}
-                              </a>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <p>No organization information available.</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              </Tabs>
-            </div>
-            
-            <div className="flex justify-between mt-6">
-              <Button variant="outline" onClick={onClose}>
-                Close
-              </Button>
-              <Button>Edit Site</Button>
-            </div>
-          </>
+        {loading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
         ) : (
-          <div className="text-center py-8">
-            <p>Site not found</p>
-            <Button className="mt-4" variant="outline" onClick={onClose}>
-              Close
-            </Button>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Site Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Name</p>
+                    <p>{site?.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Code</p>
+                    <p className="font-mono">{site?.code}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Type</p>
+                    <p>{siteType?.name || "N/A"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Organization</p>
+                    <p>{organization?.name || "N/A"}</p>
+                  </div>
+                </div>
+                
+                {site?.description && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Description</p>
+                    <p>{site.description}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* For stations, show station details */}
+            {siteType?.managing_table === 'stations' && site && (
+              <SiteStationDetails siteId={site.id} />
+            )}
+
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={onClose}>Close</Button>
+            </div>
           </div>
         )}
       </DialogContent>

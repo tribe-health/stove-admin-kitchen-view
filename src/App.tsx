@@ -1,6 +1,7 @@
+
 import React, { useEffect, useState } from "react";
 import { Routes, Route, BrowserRouter } from "react-router-dom";
-import Index from "./pages";
+import Index from "./pages/index";
 import Login from "./pages/login";
 import Dashboard from "./pages/dashboard";
 import Orders from "./pages/orders";
@@ -8,7 +9,7 @@ import Products from "./pages/products";
 import NotFound from "./pages/not-found";
 import { supabase } from "./integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Toast } from "@/components/ui/toast";
+import { Toaster } from "@/components/ui/toaster";
 import { Auth } from "./pages/auth";
 import Users from "./pages/users";
 
@@ -32,7 +33,7 @@ function App() {
 
   return (
     <BrowserRouter>
-      <Toast />
+      <Toaster />
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/login" element={<Login />} />
