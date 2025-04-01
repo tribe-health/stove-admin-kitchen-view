@@ -14,6 +14,7 @@ import { Auth } from "./pages/auth";
 import Users from "./pages/users";
 import Sites from "./pages/sites";
 import { AdminLayout } from "./components/admin-layout";
+import DeliveryLocations from "./pages/delivery-locations";
 
 function App() {
   const [authChecked, setAuthChecked] = useState(false);
@@ -44,6 +45,7 @@ function App() {
         <Route path="/products" element={<AdminLayout><Products /></AdminLayout>} />
         <Route path="/sites" element={<AdminLayout><Sites /></AdminLayout>} />
         <Route path="/users" element={<AdminLayout><Users /></AdminLayout>} />
+        <Route path="/delivery-locations" element={<AdminLayout><DeliveryLocations /></AdminLayout>} />
         
         <Route path="*" element={<NotFound />} />
       </Routes>
