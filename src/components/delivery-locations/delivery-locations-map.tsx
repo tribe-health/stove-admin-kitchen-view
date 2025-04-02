@@ -1,17 +1,15 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { MapPin, Clock, Layers } from 'lucide-react';
 import { DeliveryLocation } from '@/store/use-delivery-locations-store';
-import Map, { 
+import Map, {
   Marker, 
   Popup, 
   NavigationControl, 
   FullscreenControl, 
   Source, 
-  Layer,
-  MapMouseEvent 
-} from 'react-map-gl/mapbox';
-// If using with mapbox-gl v1:
-// import Map from 'react-map-gl/mapbox-legacy';
+  Layer
+} from 'react-map-gl/mapbox-legacy';
+import type { MapLayerMouseEvent } from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -220,8 +218,8 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
             interactiveLayerIds={useClustering ? ['clusters'] : undefined}
           >
             {/* Add map controls */}
-            <NavigationControl position="top-right" />
-            <FullscreenControl position="top-right" />
+            <NavigationControl />
+            <FullscreenControl />
             
             {/* Render either individual markers or clustered view based on toggle */}
             {useClustering ? (
@@ -270,6 +268,7 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
                     'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
                     'text-size': 12
                   }}
+                  paint={{}} // Add empty paint object to satisfy TypeScript
                 />
                 
                 {/* Unclustered points */}
@@ -293,7 +292,6 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
                     key={location.id} 
                     longitude={location.address.longitude} 
                     latitude={location.address.latitude}
-                    anchor="bottom"
                     onClick={e => {
                       e.originalEvent.stopPropagation();
                       handleMarkerClick(location);
@@ -317,7 +315,6 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
               <Popup
                 longitude={selectedLocation.address.longitude}
                 latitude={selectedLocation.address.latitude}
-                anchor="bottom"
                 onClose={() => setSelectedLocation(null)}
                 closeButton={true}
                 closeOnClick={false}
