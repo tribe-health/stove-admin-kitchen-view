@@ -11,7 +11,8 @@ export function useDeliveryLocations() {
     currentWeekStart, 
     currentWeekEnd,
     fetchLocations,
-    addLocation
+    addLocation,
+    currentDeliveryPeriod
   } = useDeliveryLocationsStore();
 
   // Format dates for display
@@ -23,6 +24,7 @@ export function useDeliveryLocations() {
 
   return {
     locations,
+    currentDeliveryPeriod,
     isLoading,
     error,
     currentWeekStart,

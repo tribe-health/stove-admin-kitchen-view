@@ -4,6 +4,8 @@ import { startOfWeek, endOfWeek, format } from 'date-fns';
 import { DeliveryLocation } from './use-delivery-locations-store';
 import { User } from './use-user-store';
 import { Database } from '@/integrations/supabase/types';
+import { PostgrestError } from '@supabase/supabase-js';
+import { DbAddress } from '@/types';
 
 export interface OrderItem {
   id: string;
@@ -29,6 +31,14 @@ export interface Order {
 
 type OrderInsertInput = Database['public']['Tables']['orders']['Insert'];
 
+type OrderWithDeliveryLocations = Database['public']['Tables']['orders']['Row'] & {
+    delivery_location?: (Database['public']['Tables']['delivery_location']['Row'] & {
+      address?: Database['public']['Tables']['address']['Row'] | null
+    }) | null,
+    users?: Database['public']['Tables']['users']['Row'] | null,
+    order_items?: Database['public']['Tables']['order_items']['Row'][]
+  }
+
 interface OrderStoreState {
   orders: Order[];
   isLoading: boolean;
@@ -39,7 +49,9 @@ interface OrderStoreState {
 
 type DbUser = Database['public']['Tables']['users']['Row'];
 
-type DbDeliveryLocation = Database['public']['Tables']['delivery_location']['Row'];
+type DbDeliveryLocation = Database['public']['Tables']['delivery_location']['Row'] & {
+    address?: DbAddress | null;
+}
 
 type DbOrderItem = Database['public']['Tables']['order_items']['Row'];
 
@@ -60,10 +72,13 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
         .from('orders')
         .select(`
           *,
-          delivery_location (*),
+          delivery_location (
+            *,
+            address:address (*)
+          ),
           users (*),
           order_items (*)
-        `);
+        `) as { data: OrderWithDeliveryLocations[] | null, error: PostgrestError | null};
       if (error) {
         throw error;
       }
@@ -96,17 +111,22 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
       if (order.delivery_location) {
         transformedLocations.push({
           id: order.delivery_location.id,
-          latitude: order.delivery_location.latitude,
-          longitude: order.delivery_location.longitude,
           name: order.delivery_location.name,
-          address: order.delivery_location.address,
-          city: order.delivery_location.city,
-          state: order.delivery_location.state,
-          zip: order.delivery_location.zip,
           start_open_time: order.delivery_location.start_open_time,
           end_open_time: order.delivery_location.end_open_time,
           provider_id: order.delivery_location.provider_id,
           delivery_period_id: order.delivery_location.delivery_period_id,
+          address: {
+            id: order.delivery_location.address.id,
+            name: order.delivery_location.address.name,
+            address: order.delivery_location.address!.address,
+            address1: order.delivery_location.address.address1,
+            city: order.delivery_location.address.city,
+            state: order.delivery_location.address.state,
+            zip: order.delivery_location.address.zip,
+            latitude: order.delivery_location.address.latitude,
+            longitude: order.delivery_location.address.longitude,
+          }
         })
       }
         

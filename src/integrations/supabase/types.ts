@@ -9,20 +9,16 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      delivery_location: {
+      address: {
         Row: {
           address: string
           address1: string | null
           city: string
           created_at: string
-          delivery_period_id: string | null
-          end_open_time: string | null
           id: string
           latitude: number | null
           longitude: number | null
           name: string
-          provider_id: string
-          start_open_time: string | null
           state: string
           zip: string
         }
@@ -31,14 +27,10 @@ export type Database = {
           address1?: string | null
           city: string
           created_at?: string
-          delivery_period_id?: string | null
-          end_open_time?: string | null
           id?: string
           latitude?: number | null
           longitude?: number | null
           name: string
-          provider_id: string
-          start_open_time?: string | null
           state: string
           zip: string
         }
@@ -47,18 +39,54 @@ export type Database = {
           address1?: string | null
           city?: string
           created_at?: string
-          delivery_period_id?: string | null
-          end_open_time?: string | null
           id?: string
           latitude?: number | null
           longitude?: number | null
           name?: string
-          provider_id?: string
-          start_open_time?: string | null
           state?: string
           zip?: string
         }
+        Relationships: []
+      }
+      delivery_location: {
+        Row: {
+          address_id: string
+          created_at: string
+          delivery_period_id: string | null
+          end_open_time: string | null
+          id: string
+          name: string
+          provider_id: string
+          start_open_time: string | null
+        }
+        Insert: {
+          address_id: string
+          created_at?: string
+          delivery_period_id?: string | null
+          end_open_time?: string | null
+          id?: string
+          name: string
+          provider_id: string
+          start_open_time?: string | null
+        }
+        Update: {
+          address_id?: string
+          created_at?: string
+          delivery_period_id?: string | null
+          end_open_time?: string | null
+          id?: string
+          name?: string
+          provider_id?: string
+          start_open_time?: string | null
+        }
         Relationships: [
+          {
+            foreignKeyName: "delivery_location_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "address"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "delivery_location_delivery_period_id_fkey"
             columns: ["delivery_period_id"]
@@ -80,6 +108,7 @@ export type Database = {
           created_at: string
           end_date: string
           id: string
+          is_current: boolean
           start_date: string
           title: string | null
         }
@@ -87,6 +116,7 @@ export type Database = {
           created_at?: string
           end_date: string
           id?: string
+          is_current?: boolean
           start_date: string
           title?: string | null
         }
@@ -94,6 +124,7 @@ export type Database = {
           created_at?: string
           end_date?: string
           id?: string
+          is_current?: boolean
           start_date?: string
           title?: string | null
         }
@@ -913,6 +944,7 @@ export type Database = {
       }
       site: {
         Row: {
+          address_id: string | null
           created_at: string
           data: Json | null
           id: string
@@ -921,6 +953,7 @@ export type Database = {
           site_type_id: string
         }
         Insert: {
+          address_id?: string | null
           created_at?: string
           data?: Json | null
           id?: string
@@ -929,6 +962,7 @@ export type Database = {
           site_type_id: string
         }
         Update: {
+          address_id?: string | null
           created_at?: string
           data?: Json | null
           id?: string
@@ -937,6 +971,13 @@ export type Database = {
           site_type_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "site_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "address"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "site_organization_id_fkey"
             columns: ["organization_id"]
@@ -1018,63 +1059,52 @@ export type Database = {
       }
       stations: {
         Row: {
-          address: string
-          address1: string | null
-          city: string
+          address_id: string
           cover_url: string | null
           created_at: string
           description: string | null
           id: string
           image_url: string | null
-          latitude: number | null
           long_description: string | null
-          longitude: number | null
           name: string
           number: number | null
           registration_code: string
           site_id: string
-          state: string
-          zip: string
         }
         Insert: {
-          address: string
-          address1?: string | null
-          city: string
+          address_id: string
           cover_url?: string | null
           created_at?: string
           description?: string | null
           id?: string
           image_url?: string | null
-          latitude?: number | null
           long_description?: string | null
-          longitude?: number | null
           name: string
           number?: number | null
           registration_code: string
           site_id: string
-          state: string
-          zip: string
         }
         Update: {
-          address?: string
-          address1?: string | null
-          city?: string
+          address_id?: string
           cover_url?: string | null
           created_at?: string
           description?: string | null
           id?: string
           image_url?: string | null
-          latitude?: number | null
           long_description?: string | null
-          longitude?: number | null
           name?: string
           number?: number | null
           registration_code?: string
           site_id?: string
-          state?: string
-          zip?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "stations_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "address"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "stations_site_id_fkey"
             columns: ["site_id"]

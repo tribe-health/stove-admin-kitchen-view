@@ -27,6 +27,7 @@ import { Search, MoreHorizontal, Filter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useOrders } from "@/hooks/use-orders";
 import { Order } from "@/store/use-order-store";
+import { stat } from "fs";
 
 type OrderStatus = "placed" | "in_progress" | "made" | "out_for_delivery" | "delivered" | "canceled" | "error";
 
@@ -56,7 +57,7 @@ export default function Orders() {
       );
     }
 
-    if (status) {
+    if (status && status !== 'all') {
       result = result.filter(order => order.order_status === status);
     }
 

@@ -50,10 +50,10 @@ export function DeliveryLocationsTable({ locations, isLoading }: DeliveryLocatio
           {locations.map((location) => (
             <TableRow key={location.id}>
               <TableCell className="font-medium">{location.name}</TableCell>
-              <TableCell>{location.address}</TableCell>
-              <TableCell>{location.city}</TableCell>
-              <TableCell>{location.state}</TableCell>
-              <TableCell>{location.zip}</TableCell>
+              <TableCell>{location.address.address}</TableCell>
+              <TableCell>{location.address.city}</TableCell>
+              <TableCell>{location.address.state}</TableCell>
+              <TableCell>{location.address.zip}</TableCell>
               <TableCell>
                 {location.start_open_time && location.end_open_time
                   ? `${location.start_open_time} - ${location.end_open_time}`
