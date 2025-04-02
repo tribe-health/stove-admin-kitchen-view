@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Table,
   TableBody,
@@ -45,33 +45,16 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { ProductFormValues, productSchema } from "@/lib/validations/product-schema";
 import { toast } from "sonner";
-
-interface Product {
-  id: string;
-  name: string;
-  type: string;
-  price: string;
-  inventory: number | string;
-  created: string;
-}
-
-const mockProducts: Product[] = [
-  { id: 'PROD-001', name: 'Grilled Chicken Salad', type: 'Salad', price: '$12.99', inventory: 25, created: '2023-03-15' },
-  { id: 'PROD-002', name: 'Veggie Power Bowl', type: 'Bowl', price: '$14.50', inventory: 18, created: '2023-03-18' },
-  { id: 'PROD-003', name: 'Protein Smoothie', type: 'Drink', price: '$8.95', inventory: 30, created: '2023-03-20' },
-  { id: 'PROD-004', name: 'Salmon Plate', type: 'Entree', price: '$16.95', inventory: 12, created: '2023-03-25' },
-  { id: 'PROD-005', name: 'Turkey Sandwich', type: 'Sandwich', price: '$10.50', inventory: 20, created: '2023-04-02' },
-  { id: 'PROD-006', name: 'Fresh Fruit Cup', type: 'Side', price: '$4.95', inventory: 40, created: '2023-04-05' },
-  { id: 'PROD-007', name: 'Vegetable Soup', type: 'Soup', price: '$6.75', inventory: 15, created: '2023-04-10' },
-  { id: 'PROD-008', name: 'Chocolate Protein Bar', type: 'Snack', price: '$3.95', inventory: 50, created: '2023-04-12' },
-  { id: 'PROD-009', name: 'Green Tea', type: 'Drink', price: '$2.95', inventory: 35, created: '2023-04-15' },
-  { id: 'PROD-010', name: 'Quinoa Breakfast Bowl', type: 'Breakfast', price: '$9.95', inventory: 'Out of Stock', created: '2023-04-18' },
-];
+import { Product } from "@/store/use-product-store";
+import { useProducts } from "@/hooks/use-products";
+import { set } from "date-fns";
 
 export default function Products() {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>(mockProducts);
+
+  const { products, isLoading, addProduct } = useProducts();
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [showAddDialog, setShowAddDialog] = useState(false);
 
   const form = useForm<ProductFormValues>({
@@ -96,7 +79,7 @@ export default function Products() {
   };
 
   const applyFilters = (term: string, type: string) => {
-    let result = mockProducts;
+    let result = [...products];
 
     if (term) {
       result = result.filter(product => 
@@ -105,22 +88,65 @@ export default function Products() {
       );
     }
 
-    if (type) {
-      result = result.filter(product => product.type === type);
+    if (type && type !== "all") {
+      result = result.filter(product => 
+        product.product_type && product.product_type.key === type
+      );
     }
 
     setFilteredProducts(result);
   };
 
-  const onSubmit = (data: ProductFormValues) => {
-    // In a real app, this would be an API call
-    console.log(data);
-    toast.success("Product added successfully!");
-    setShowAddDialog(false);
-    form.reset();
+  const onSubmit = async (data: ProductFormValues) => {
+    try {
+      // Transform form data to match API expectations
+      const productInput = {
+        product_type_id: data.productTypeId || '',
+        name: data.name,
+        short_description: data.shortDescription || null,
+        long_description: data.longDescription || null,
+        unit_price: data.unitPrice,
+        photo_url: data.photoUrl || null,
+        unit: data.unit || null,
+        data: {},
+        stripe_product_id: null
+      };
+      
+      const result = await addProduct(productInput);
+      
+      if (result) {
+        toast.success("Product added successfully!");
+        setShowAddDialog(false);
+        form.reset();
+      } else {
+        toast.error("Failed to add product");
+      }
+    } catch (error) {
+      console.error("Error adding product:", error);
+      toast.error("An error occurred while adding the product");
+    }
   };
 
-  const productTypes = [...new Set(mockProducts.map(product => product.type))];
+  // Extract unique product types properly
+  const productTypes = Array.from(
+    new Map(
+      products
+        .filter(product => product.product_type) // Ensure product_type exists
+        .map(product => [product.product_type.id, product.product_type])
+    ).values()
+  );
+
+  // Apply filters when products, searchTerm, or typeFilter changes
+  useEffect(() => {
+    if (products.length > 0) {
+      applyFilters(searchTerm, typeFilter);
+    }
+  }, [products, searchTerm, typeFilter, applyFilters]);
+
+  // Initialize filteredProducts when products change
+  useEffect(() => {
+    setFilteredProducts(products);
+  }, [products]);
 
   return (
     <div className="space-y-6">
@@ -172,7 +198,7 @@ export default function Products() {
                         </FormControl>
                         <SelectContent>
                           {productTypes.map(type => (
-                            <SelectItem key={type} value={type}>{type}</SelectItem>
+                            <SelectItem key={type.id} value={type.key}>{type.name}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -188,6 +214,19 @@ export default function Products() {
                       <FormLabel>Short Description</FormLabel>
                       <FormControl>
                         <Input placeholder="Brief description" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="longDescription"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Long Description</FormLabel>
+                      <FormControl>
+                        <Textarea placeholder="Detailed description" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -250,35 +289,58 @@ export default function Products() {
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
               {productTypes.map(type => (
-                <SelectItem key={type} value={type}>{type}</SelectItem>
+                <SelectItem key={type.id} value={type.key}>{type.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Inventory</TableHead>
-              <TableHead>Created</TableHead>
-              <TableHead className="w-[80px]"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredProducts.map((product) => (
+      {isLoading ? (
+        <div className="flex justify-center items-center h-40">
+          <p>Loading products...</p>
+        </div>
+      ) : filteredProducts.length === 0 ? (
+        <div className="flex justify-center items-center h-40 border rounded-md">
+          <p className="text-muted-foreground">No products found</p>
+        </div>
+      ) : (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead></TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Price</TableHead>
+                <TableHead>Unit</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead className="w-[80px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredProducts.map((product) => (
               <TableRow key={product.id}>
-                <TableCell className="font-medium">{product.id}</TableCell>
+                <TableCell className="font-medium">
+                  {product.photo_url ? (
+                    <img 
+                      alt={product.name} 
+                      src={product.photo_url} 
+                      className="h-10 w-10 object-cover rounded-md"
+                    />
+                  ) : (
+                    <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center">
+                      <Package className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  )}
+                </TableCell>
                 <TableCell>{product.name}</TableCell>
-                <TableCell>{product.type}</TableCell>
-                <TableCell>{product.price}</TableCell>
-                <TableCell>{product.inventory}</TableCell>
-                <TableCell>{product.created}</TableCell>
+                <TableCell>{product.product_type?.name || "Unknown"}</TableCell>
+                <TableCell>${product.unit_price.toFixed(2)}</TableCell>
+                <TableCell>{product.unit}</TableCell>
+                <TableCell>
+                  {new Date(product.created_at).toLocaleDateString()}
+                </TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
@@ -295,10 +357,11 @@ export default function Products() {
                   </DropdownMenu>
                 </TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }
