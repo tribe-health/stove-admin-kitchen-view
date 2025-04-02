@@ -16,20 +16,35 @@ import Sites from "./pages/sites";
 import { AdminLayout } from "./components/admin-layout";
 import DeliveryLocations from "./pages/delivery-locations";
 import Settings from "./pages/settings";
+import { useAuthStore } from "./store/use-auth-store";
 
 function App() {
   const [authChecked, setAuthChecked] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    const session = localStorage.getItem("supabase.auth.session");
-    if (!session) {
-      toast({
-        title: "You are not logged in.",
-        description: "Redirecting to login page.",
-      });
-    }
-    setAuthChecked(true);
+    const initializeAuth = async () => {
+      try {
+        // Hydrate auth store from Supabase session
+        await useAuthStore.getState().hydrateFromSession();
+        
+        // Check if user is logged in after hydration
+        const isLoggedIn = useAuthStore.getState().isLoggedIn;
+        
+        if (!isLoggedIn) {
+          toast({
+            title: "You are not logged in.",
+            description: "Redirecting to login page.",
+          });
+        }
+      } catch (error) {
+        console.error("Auth initialization error:", error);
+      } finally {
+        setAuthChecked(true);
+      }
+    };
+    
+    initializeAuth();
   }, [toast]);
 
   return (

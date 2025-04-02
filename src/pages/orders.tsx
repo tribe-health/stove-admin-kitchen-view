@@ -25,33 +25,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Search, MoreHorizontal, Filter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useOrders } from "@/hooks/use-orders";
+import { Order } from "@/store/use-order-store";
 
-interface Order {
-  id: string;
-  customer: string;
-  date: string;
-  status: 'placed' | 'in_progress' | 'made' | 'out_for_delivery' | 'delivered' | 'canceled' | 'error';
-  total: string;
-  items: number;
-}
-
-const mockOrders: Order[] = [
-  { id: 'ORD-1234', customer: 'John Smith', date: '2023-04-25 10:30 AM', status: 'delivered', total: '$65.99', items: 3 },
-  { id: 'ORD-1233', customer: 'Sarah Johnson', date: '2023-04-25 09:15 AM', status: 'out_for_delivery', total: '$42.50', items: 2 },
-  { id: 'ORD-1232', customer: 'Michael Brown', date: '2023-04-24 03:45 PM', status: 'made', total: '$89.95', items: 4 },
-  { id: 'ORD-1231', customer: 'Emma Davis', date: '2023-04-24 01:20 PM', status: 'in_progress', total: '$34.99', items: 1 },
-  { id: 'ORD-1230', customer: 'Robert Wilson', date: '2023-04-24 11:10 AM', status: 'placed', total: '$76.25', items: 3 },
-  { id: 'ORD-1229', customer: 'Jennifer Lee', date: '2023-04-23 04:30 PM', status: 'canceled', total: '$52.75', items: 2 },
-  { id: 'ORD-1228', customer: 'David Taylor', date: '2023-04-23 02:15 PM', status: 'error', total: '$28.50', items: 1 },
-  { id: 'ORD-1227', customer: 'Linda Anderson', date: '2023-04-23 10:45 AM', status: 'delivered', total: '$104.99', items: 5 },
-  { id: 'ORD-1226', customer: 'James Martin', date: '2023-04-22 03:30 PM', status: 'delivered', total: '$47.25', items: 2 },
-  { id: 'ORD-1225', customer: 'Patricia White', date: '2023-04-22 01:15 PM', status: 'delivered', total: '$63.75', items: 3 },
-];
+type OrderStatus = "placed" | "in_progress" | "made" | "out_for_delivery" | "delivered" | "canceled" | "error";
 
 export default function Orders() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("");
-  const [filteredOrders, setFilteredOrders] = useState<Order[]>(mockOrders);
+  const [statusFilter, setStatusFilter] = useState<string>('placed');
+  const { orders } = useOrders();
+  const [filteredOrders, setFilteredOrders] = useState<Order[]>(orders);
 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
@@ -64,24 +47,24 @@ export default function Orders() {
   };
 
   const applyFilters = (term: string, status: string) => {
-    let result = mockOrders;
+    let result = orders;
 
     if (term) {
       result = result.filter(order => 
-        order.id.toLowerCase().includes(term.toLowerCase()) ||
-        order.customer.toLowerCase().includes(term.toLowerCase())
+        order.user.first_name.toLowerCase().includes(term.toLowerCase()) ||
+        order.user.last_name.toLowerCase().includes(term.toLowerCase())
       );
     }
 
     if (status) {
-      result = result.filter(order => order.status === status);
+      result = result.filter(order => order.order_status === status);
     }
 
     setFilteredOrders(result);
   };
 
-  const getStatusBadge = (status: Order['status']) => {
-    const statusConfig: Record<Order['status'], { variant: "default" | "destructive" | "outline" | "secondary"; label: string }> = {
+  const getStatusBadge = (status) => {
+    const statusConfig: Record<OrderStatus, { variant: "default" | "destructive" | "outline" | "secondary"; label: string }> = {
       placed: { variant: "outline", label: "Placed" },
       in_progress: { variant: "secondary", label: "In Progress" },
       made: { variant: "secondary", label: "Made" },
@@ -141,7 +124,8 @@ export default function Orders() {
           <TableHeader>
             <TableRow>
               <TableHead>Order ID</TableHead>
-              <TableHead>Customer</TableHead>
+              <TableHead>Last Name</TableHead>
+              <TableHead>First Name</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Total</TableHead>
@@ -153,11 +137,12 @@ export default function Orders() {
             {filteredOrders.map((order) => (
               <TableRow key={order.id}>
                 <TableCell className="font-medium">{order.id}</TableCell>
-                <TableCell>{order.customer}</TableCell>
-                <TableCell>{order.date}</TableCell>
-                <TableCell>{getStatusBadge(order.status)}</TableCell>
+                <TableCell>{order.user.last_name}</TableCell>
+                <TableCell>{order.user.first_name}</TableCell>
+                <TableCell>{order.created_at}</TableCell>
+                <TableCell>{getStatusBadge(order.order_status)}</TableCell>
                 <TableCell>{order.total}</TableCell>
-                <TableCell>{order.items}</TableCell>
+                <TableCell>{order.order_items.length}</TableCell>
                 <TableCell>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

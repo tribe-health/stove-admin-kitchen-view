@@ -15,6 +15,7 @@ export type Database = {
           address1: string | null
           city: string
           created_at: string
+          delivery_period_id: string | null
           end_open_time: string | null
           id: string
           latitude: number | null
@@ -30,6 +31,7 @@ export type Database = {
           address1?: string | null
           city: string
           created_at?: string
+          delivery_period_id?: string | null
           end_open_time?: string | null
           id?: string
           latitude?: number | null
@@ -45,6 +47,7 @@ export type Database = {
           address1?: string | null
           city?: string
           created_at?: string
+          delivery_period_id?: string | null
           end_open_time?: string | null
           id?: string
           latitude?: number | null
@@ -57,6 +60,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "delivery_location_delivery_period_id_fkey"
+            columns: ["delivery_period_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_period"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "delivery_location_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: false
@@ -64,6 +74,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      delivery_period: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: string
+          start_date: string
+          title: string | null
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: string
+          start_date: string
+          title?: string | null
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: string
+          start_date?: string
+          title?: string | null
+        }
+        Relationships: []
       }
       navigation: {
         Row: {
@@ -322,19 +356,10 @@ export type Database = {
       orders: {
         Row: {
           created_at: string
-          delivery_address: string | null
-          delivery_address1: string | null
-          delivery_city: string | null
-          delivery_lat: number | null
-          delivery_location_name: string | null
-          delivery_long: number | null
-          delivery_state: string | null
-          delivery_zip: string | null
+          delivery_location_id: string | null
           id: string
           notes: string | null
           order_status: Database["public"]["Enums"]["order_status"]
-          scheduled_delivery_at: string | null
-          station_delivery_location_timeslot_id: string | null
           subtotal: number | null
           tax: number | null
           total: number | null
@@ -343,19 +368,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          delivery_address?: string | null
-          delivery_address1?: string | null
-          delivery_city?: string | null
-          delivery_lat?: number | null
-          delivery_location_name?: string | null
-          delivery_long?: number | null
-          delivery_state?: string | null
-          delivery_zip?: string | null
+          delivery_location_id?: string | null
           id?: string
           notes?: string | null
           order_status?: Database["public"]["Enums"]["order_status"]
-          scheduled_delivery_at?: string | null
-          station_delivery_location_timeslot_id?: string | null
           subtotal?: number | null
           tax?: number | null
           total?: number | null
@@ -364,19 +380,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          delivery_address?: string | null
-          delivery_address1?: string | null
-          delivery_city?: string | null
-          delivery_lat?: number | null
-          delivery_location_name?: string | null
-          delivery_long?: number | null
-          delivery_state?: string | null
-          delivery_zip?: string | null
+          delivery_location_id?: string | null
           id?: string
           notes?: string | null
           order_status?: Database["public"]["Enums"]["order_status"]
-          scheduled_delivery_at?: string | null
-          station_delivery_location_timeslot_id?: string | null
           subtotal?: number | null
           tax?: number | null
           total?: number | null
@@ -385,10 +392,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "orders_station_delivery_location_timeslot_id_fkey"
-            columns: ["station_delivery_location_timeslot_id"]
+            foreignKeyName: "orders_delivery_location_id_fkey"
+            columns: ["delivery_location_id"]
             isOneToOne: false
-            referencedRelation: "station_delivery_location_timeslots"
+            referencedRelation: "delivery_location"
             referencedColumns: ["id"]
           },
           {
@@ -946,6 +953,42 @@ export type Database = {
           },
         ]
       }
+      site_delivery_location: {
+        Row: {
+          created_at: string
+          delivery_location_id: string
+          id: string
+          site_id: string
+        }
+        Insert: {
+          created_at?: string
+          delivery_location_id: string
+          id?: string
+          site_id: string
+        }
+        Update: {
+          created_at?: string
+          delivery_location_id?: string
+          id?: string
+          site_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_delivery_location_delivery_location_id_fkey"
+            columns: ["delivery_location_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_location"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_delivery_location_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "site"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       site_type: {
         Row: {
           created_at: string
@@ -972,74 +1015,6 @@ export type Database = {
           schema?: Json | null
         }
         Relationships: []
-      }
-      station_delivery_location_timeslots: {
-        Row: {
-          begin_at: string
-          created_at: string
-          end_at: string | null
-          id: string
-          station_delivery_location_id: string
-        }
-        Insert: {
-          begin_at: string
-          created_at?: string
-          end_at?: string | null
-          id?: string
-          station_delivery_location_id: string
-        }
-        Update: {
-          begin_at?: string
-          created_at?: string
-          end_at?: string | null
-          id?: string
-          station_delivery_location_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "station_delivery_location_tim_station_delivery_location_id_fkey"
-            columns: ["station_delivery_location_id"]
-            isOneToOne: false
-            referencedRelation: "station_delivery_locations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      station_delivery_locations: {
-        Row: {
-          created_at: string
-          delivery_location_id: string
-          id: string
-          station_id: string
-        }
-        Insert: {
-          created_at?: string
-          delivery_location_id: string
-          id?: string
-          station_id: string
-        }
-        Update: {
-          created_at?: string
-          delivery_location_id?: string
-          id?: string
-          station_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "station_delivery_locations_delivery_location_id_fkey"
-            columns: ["delivery_location_id"]
-            isOneToOne: false
-            referencedRelation: "delivery_location"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "station_delivery_locations_station_id_fkey"
-            columns: ["station_id"]
-            isOneToOne: false
-            referencedRelation: "stations"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       stations: {
         Row: {
@@ -1361,6 +1336,7 @@ export type Database = {
           last_name: string
           metadata: Json | null
           pds_url: string
+          phone_number: string | null
           primary_station_id: string | null
           stripe_customer_id: string | null
           updated_at: string | null
@@ -1375,6 +1351,7 @@ export type Database = {
           last_name: string
           metadata?: Json | null
           pds_url: string
+          phone_number?: string | null
           primary_station_id?: string | null
           stripe_customer_id?: string | null
           updated_at?: string | null
@@ -1389,6 +1366,7 @@ export type Database = {
           last_name?: string
           metadata?: Json | null
           pds_url?: string
+          phone_number?: string | null
           primary_station_id?: string | null
           stripe_customer_id?: string | null
           updated_at?: string | null
