@@ -1,4 +1,5 @@
 
+import { useEffect, useState } from 'react';
 import { DeliveryLocation } from '@/store/use-delivery-locations-store';
 import { MapPin } from 'lucide-react';
 import { 
@@ -16,7 +17,19 @@ interface DeliveryLocationsTableProps {
 }
 
 export function DeliveryLocationsTable({ locations, isLoading }: DeliveryLocationsTableProps) {
-  if (isLoading) {
+  const [tableReady, setTableReady] = useState(false);
+  
+  // Force table to render regardless of loading state after a timeout
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setTableReady(true);
+    }, 2000); // Force table to show after 2 seconds regardless of loading state
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
+  // Only show loading state if we're loading data and the table isn't ready yet
+  if (isLoading && !tableReady) {
     return (
       <div className="w-full p-8 flex items-center justify-center">
         <div className="animate-pulse">Loading delivery locations...</div>

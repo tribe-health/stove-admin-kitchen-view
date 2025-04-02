@@ -30,6 +30,10 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
     zoom: 14
   });
   const [useClustering, setUseClustering] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
+  // Use a more specific type for the map reference
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mapRef = useRef<any>(null);
 
   // Convert locations to GeoJSON for clustering
   const geojson = useMemo(() => {
@@ -87,16 +91,42 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
     };
   }, [locations]);
 
+  // Force map to render regardless of loading state
+  useEffect(() => {
+    // Set a timeout to ensure map is shown even if loading state gets stuck
+    const timer = setTimeout(() => {
+      setMapReady(true);
+    }, 2000); // Force map to show after 2 seconds regardless of loading state
+    
+    return () => clearTimeout(timer);
+  }, []);
+  
   // Update view state when bounds change
   useEffect(() => {
-    if (bounds && !isLoading) {
+    if (bounds) {
       setViewState({
         longitude: bounds.longitude,
         latitude: bounds.latitude,
         zoom: bounds.zoom
       });
+      
+      // If map is already rendered, fly to the new bounds
+      if (mapRef.current && mapReady) {
+        try {
+          const map = mapRef.current.getMap();
+          if (map) {
+            map.flyTo({
+              center: [bounds.longitude, bounds.latitude],
+              zoom: bounds.zoom,
+              essential: true
+            });
+          }
+        } catch (error) {
+          console.error('Error flying to bounds:', error);
+        }
+      }
     }
-  }, [bounds, isLoading]);
+  }, [bounds, mapReady]);
 
   // Debug location coordinates
   useEffect(() => {
@@ -153,7 +183,8 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
     }
   };
 
-  if (isLoading) {
+  // Only show loading state if we're loading data and the map isn't ready yet
+  if (isLoading && !mapReady) {
     return (
       <div className="w-full h-[300px] bg-muted/30 flex items-center justify-center rounded-lg">
         <div className="animate-pulse">Loading map...</div>
@@ -209,6 +240,7 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
         
         <div className="absolute inset-0">
           <Map
+            ref={mapRef}
             mapboxAccessToken={mapBoxToken}
             {...viewState}
             onMove={evt => setViewState(evt.viewState)}
@@ -216,6 +248,10 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
             style={{width: '100%', height: '100%'}}
             mapStyle="mapbox://styles/mapbox/streets-v9"
             interactiveLayerIds={useClustering ? ['clusters'] : undefined}
+            onLoad={() => {
+              console.log('Map loaded successfully');
+              setMapReady(true);
+            }}
           >
             {/* Add map controls */}
             <NavigationControl />
