@@ -213,20 +213,26 @@ export default function ViewOrder() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Address</p>
                   <p className="text-sm font-medium">
-                    {order.delivery_location.address.address1}<br />
+                    {order.delivery_location.address.address1 || order.delivery_location.address.address}<br />
                     {order.delivery_location.address.city}, {order.delivery_location.address.state} {order.delivery_location.address.zip}
                   </p>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Open Time</p>
-                    <p className="text-sm font-medium">{order.delivery_location.start_open_time}</p>
+                {(order.delivery_location.start_open_time || order.delivery_location.end_open_time) && (
+                  <div className="grid grid-cols-2 gap-4">
+                    {order.delivery_location.start_open_time && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Open Time</p>
+                        <p className="text-sm font-medium">{order.delivery_location.start_open_time}</p>
+                      </div>
+                    )}
+                    {order.delivery_location.end_open_time && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Close Time</p>
+                        <p className="text-sm font-medium">{order.delivery_location.end_open_time}</p>
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Close Time</p>
-                    <p className="text-sm font-medium">{order.delivery_location.end_open_time}</p>
-                  </div>
-                </div>
+                )}
               </>
             ) : (
               <div className="text-sm text-muted-foreground">No delivery location specified</div>

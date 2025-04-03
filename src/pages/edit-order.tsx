@@ -339,20 +339,26 @@ export default function EditOrder() {
                 <div>
                   <Label>Address</Label>
                   <div className="text-sm font-medium">
-                    {order.delivery_location.address.address1}<br />
+                    {order.delivery_location.address.address1 || order.delivery_location.address.address}<br />
                     {order.delivery_location.address.city}, {order.delivery_location.address.state} {order.delivery_location.address.zip}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label>Open Time</Label>
-                    <div className="text-sm font-medium">{order.delivery_location.start_open_time}</div>
+                {(order.delivery_location.start_open_time || order.delivery_location.end_open_time) && (
+                  <div className="grid grid-cols-2 gap-4">
+                    {order.delivery_location.start_open_time && (
+                      <div>
+                        <Label>Open Time</Label>
+                        <div className="text-sm font-medium">{order.delivery_location.start_open_time}</div>
+                      </div>
+                    )}
+                    {order.delivery_location.end_open_time && (
+                      <div>
+                        <Label>Close Time</Label>
+                        <div className="text-sm font-medium">{order.delivery_location.end_open_time}</div>
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <Label>Close Time</Label>
-                    <div className="text-sm font-medium">{order.delivery_location.end_open_time}</div>
-                  </div>
-                </div>
+                )}
               </>
             ) : (
               <div className="text-sm text-muted-foreground">No delivery location specified</div>
