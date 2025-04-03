@@ -30,7 +30,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Loader2, MapPin, Clock, Building, Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 
 interface DeliveryLocationDetailProps {
   location?: DeliveryLocation;
@@ -73,6 +73,14 @@ export function DeliveryLocationDetail({
       loadSites();
     }
   }, [location, isNew]);
+
+  // Helper function to safely format time values
+  const safeFormatTime = (timeString?: string) => {
+    if (!timeString) return null;
+    
+    const date = new Date(timeString);
+    return isValid(date) ? format(date, 'h:mm a') : null;
+  };
 
   const loadSites = async () => {
     if (!location) return;
@@ -287,9 +295,14 @@ export function DeliveryLocationDetail({
                   <div className="flex items-center">
                     <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
                     <p>
-                      {location.start_open_time && location.end_open_time
-                        ? `${format(new Date(location.start_open_time), 'h:mm a')} - ${format(new Date(location.end_open_time), 'h:mm a')}`
-                        : 'No hours specified'}
+                      {(() => {
+                        const startTime = safeFormatTime(location.start_open_time);
+                        const endTime = safeFormatTime(location.end_open_time);
+                        
+                        return startTime && endTime
+                          ? `${startTime} - ${endTime}`
+                          : 'No hours specified';
+                      })()}
                     </p>
                   </div>
                 </div>

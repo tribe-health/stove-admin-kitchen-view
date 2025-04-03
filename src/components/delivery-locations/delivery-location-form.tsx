@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { TimePickerInput } from '@/components/ui/time-picker-input';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 import { useProviders } from '@/hooks/use-providers';
 import {
   Select,
@@ -65,11 +65,26 @@ export function DeliveryLocationForm({
   deliveryPeriods,
   onSelectDeliveryPeriod,
 }: DeliveryLocationFormProps) {
+  // Helper function to safely format time values
+  const safeFormatTime = (timeString?: string, formatStr: string = 'HH:mm') => {
+    if (!timeString) return '';
+    
+    const date = new Date(timeString);
+    return isValid(date) ? format(date, formatStr) : '';
+  };
+  
+  // Helper function to safely create a Date object
+  const safeCreateDate = (timeString?: string) => {
+    if (!timeString) return undefined;
+    
+    const date = new Date(timeString);
+    return isValid(date) ? date : undefined;
+  };
   const [startTime, setStartTime] = useState<Date | undefined>(
-    initialData?.start_open_time ? new Date(initialData.start_open_time) : undefined
+    safeCreateDate(initialData?.start_open_time)
   );
   const [endTime, setEndTime] = useState<Date | undefined>(
-    initialData?.end_open_time ? new Date(initialData.end_open_time) : undefined
+    safeCreateDate(initialData?.end_open_time)
   );
 
   const { providers, isLoading: isLoadingProviders } = useProviders();
@@ -87,8 +102,8 @@ export function DeliveryLocationForm({
         state: initialData?.address?.state || '',
         zip: initialData?.address?.zip || '',
       },
-      startOpenTime: initialData?.start_open_time ? format(new Date(initialData.start_open_time), 'HH:mm') : '',
-      endOpenTime: initialData?.end_open_time ? format(new Date(initialData.end_open_time), 'HH:mm') : '',
+      startOpenTime: safeFormatTime(initialData?.start_open_time),
+      endOpenTime: safeFormatTime(initialData?.end_open_time),
       providerId: initialData?.provider_id || '',
       deliveryPeriodId: initialData?.delivery_period_id || deliveryPeriodId || '',
     },
@@ -251,7 +266,7 @@ export function DeliveryLocationForm({
                         <SelectContent>
                           {deliveryPeriods.map((period) => (
                             <SelectItem key={period.id} value={period.id}>
-                              {period.title || `Week of ${format(new Date(period.start_date), 'MMM d, yyyy')}`}
+                              {period.title || `Week of ${safeFormatTime(period.start_date, 'MMM d, yyyy')}`}
                             </SelectItem>
                           ))}
                         </SelectContent>

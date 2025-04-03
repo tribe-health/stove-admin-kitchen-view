@@ -10,7 +10,7 @@ import {
   TableCell
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { format } from 'date-fns';
+import { format, isValid } from 'date-fns';
 
 interface DeliveryLocationsTableProps {
   locations: DeliveryLocation[];
@@ -25,6 +25,13 @@ export function DeliveryLocationsTable({
   onSelectLocation,
   selectedLocationId 
 }: DeliveryLocationsTableProps) {
+  // Helper function to safely format time values
+  const safeFormatTime = (timeString?: string) => {
+    if (!timeString) return null;
+    
+    const date = new Date(timeString);
+    return isValid(date) ? format(date, 'h:mm a') : null;
+  };
   const [tableReady, setTableReady] = useState(false);
   
   // Force table to render regardless of loading state after a timeout
@@ -86,9 +93,14 @@ export function DeliveryLocationsTable({
               <TableCell>{location.address.city}</TableCell>
               <TableCell>{location.address.state}</TableCell>
               <TableCell>
-                {location.start_open_time && location.end_open_time
-                  ? `${format(new Date(location.start_open_time), 'h:mm a')} - ${format(new Date(location.end_open_time), 'h:mm a')}`
-                  : 'Not specified'}
+                {(() => {
+                  const startTime = safeFormatTime(location.start_open_time);
+                  const endTime = safeFormatTime(location.end_open_time);
+                  
+                  return startTime && endTime
+                    ? `${startTime} - ${endTime}`
+                    : 'Not specified';
+                })()}
               </TableCell>
               <TableCell>
                 <Button 

@@ -4,6 +4,7 @@ import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, ZoomControl } from 'react-leaflet';
 import { MapPin, Clock, Layers } from 'lucide-react';
+import { format, isValid } from 'date-fns';
 import { DeliveryLocation } from '@/store/use-delivery-locations-store';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -56,6 +57,13 @@ export function DeliveryLocationsMap({
   onSelectLocation,
   selectedLocationId 
 }: DeliveryLocationsMapProps) {
+  // Helper function to safely format time values
+  const safeFormatTime = (timeString?: string) => {
+    if (!timeString) return null;
+    
+    const date = new Date(timeString);
+    return isValid(date) ? format(date, 'h:mm a') : timeString;
+  };
   const [selectedLocation, setSelectedLocation] = useState<DeliveryLocation | null>(null);
   const [useClustering, setUseClustering] = useState(false);
   const [mapReady, setMapReady] = useState(false);
@@ -227,7 +235,13 @@ export function DeliveryLocationsMap({
                         {location.start_open_time && location.end_open_time && (
                           <div className="flex items-center mt-2 text-xs text-muted-foreground">
                             <Clock className="h-3 w-3 mr-1" />
-                            <span>{location.start_open_time} - {location.end_open_time}</span>
+                            <span>
+                              {(() => {
+                                const startTime = safeFormatTime(location.start_open_time);
+                                const endTime = safeFormatTime(location.end_open_time);
+                                return `${startTime || location.start_open_time} - ${endTime || location.end_open_time}`;
+                              })()}
+                            </span>
                           </div>
                         )}
                         
@@ -269,7 +283,13 @@ export function DeliveryLocationsMap({
                         {location.start_open_time && location.end_open_time && (
                           <div className="flex items-center mt-2 text-xs text-muted-foreground">
                             <Clock className="h-3 w-3 mr-1" />
-                            <span>{location.start_open_time} - {location.end_open_time}</span>
+                            <span>
+                              {(() => {
+                                const startTime = safeFormatTime(location.start_open_time);
+                                const endTime = safeFormatTime(location.end_open_time);
+                                return `${startTime || location.start_open_time} - ${endTime || location.end_open_time}`;
+                              })()}
+                            </span>
                           </div>
                         )}
                         
