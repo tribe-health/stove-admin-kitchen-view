@@ -39,6 +39,12 @@ export interface ProductInput {
   stripe_product_id: string | null;
 }
 
+export interface EditingProduct {
+  input: ProductInput;
+  productId: string | null;
+  is_dirty: true;
+}
+
 interface ProductState {
   products: Product[];
   isLoading: boolean;
@@ -46,6 +52,8 @@ interface ProductState {
   fetchProducts: () => Promise<void>;
   addProduct: (product: ProductInput) => Promise<Product | null>;
   updateProduct: (id: string, product: ProductInput) => Promise<Product | null>;
+  editingProduct: EditingProduct | null;
+  setEditingProduct: (editingProduct: EditingProduct) => void;
 }
 
 type ProductWithType = Database['public']['Tables']['products']['Row'] & {
@@ -62,6 +70,8 @@ export const useProductStore = create<ProductState>((set, get) => ({
   products: [],
   isLoading: false,
   error: null,
+  editingProduct: null,
+  setEditingProduct: (editingProduct: EditingProduct) => set({ editingProduct });
   fetchProducts: async () => {
     try {
       set({ isLoading: true, error: null });
