@@ -33,6 +33,7 @@ export interface ProductInput {
   name: string;
   short_description: string | null;
   long_description: string | null;
+  instructions: string | null;
   unit_price: number;
   photo_url: string | null;
   unit: string | null;

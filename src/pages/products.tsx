@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2 } from 'lucide-react';
@@ -103,14 +104,14 @@ export default function Products() {
                     <TableRow key={product.id}>
                       <TableCell className="font-medium">
                         <img
-                          src={product.image}
+                          src={product.photo_url}
                           alt={product.name}
                           className="h-10 w-10 rounded-full object-cover"
                         />
                       </TableCell>
                       <TableCell>{product.name}</TableCell>
-                      <TableCell>{product.description}</TableCell>
-                      <TableCell>${product.price}</TableCell>
+                      <TableCell>{product.short_description}</TableCell>
+                      <TableCell>${product.unit_price}</TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"
