@@ -1,6 +1,6 @@
+
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { MapPin, Clock, Layers } from 'lucide-react';
-import { DeliveryLocation } from '@/store/use-delivery-locations-store';
 import Map, {
   Marker, 
   Popup, 
@@ -8,12 +8,13 @@ import Map, {
   FullscreenControl, 
   Source, 
   Layer
-} from 'react-map-gl/mapbox-legacy';
+} from 'react-map-gl';
 import type { MapLayerMouseEvent } from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { DeliveryLocation } from '@/store/use-delivery-locations-store';
 
 const mapBoxToken = 'pk.eyJ1IjoiZ3FhZG9uaXMiLCJhIjoiY2o4bzdnZXc2MDA1ZTJ3cnp5cTM3N2p2bCJ9.Mp12t4wj_L2KAzQocwCuWQ';
 
@@ -155,7 +156,7 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
   // Handle cluster click to zoom in
   // Using 'any' type here due to complex MapBox API types that don't fully match the runtime behavior
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleClusterClick = (event: any) => {
+  const handleClusterClick = (event: MapLayerMouseEvent) => {
     // Check if we have features and if the first one has a cluster_id
     if (!event.features || !event.features.length || !event.features[0].properties.cluster_id) {
       return;
@@ -166,7 +167,7 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
     
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const mapboxSource: any = event.target.getSource('delivery-locations');
+      const mapboxSource: any = mapRef.current.getMap().getSource('delivery-locations');
       
       mapboxSource.getClusterExpansionZoom(clusterId, (err: Error | null, zoom: number) => {
         if (err) return;
