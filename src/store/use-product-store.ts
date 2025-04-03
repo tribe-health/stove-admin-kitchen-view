@@ -71,7 +71,7 @@ export const useProductStore = create<ProductState>((set, get) => ({
   isLoading: false,
   error: null,
   editingProduct: null,
-  setEditingProduct: (editingProduct: EditingProduct) => set({ editingProduct });
+  setEditingProduct: (editingProduct: EditingProduct) => set({ editingProduct }),
   fetchProducts: async () => {
     try {
       set({ isLoading: true, error: null });
