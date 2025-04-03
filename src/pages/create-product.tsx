@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -16,16 +17,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Plus, Upload } from 'lucide-react';
-import { api } from '@/lib/api';
-import {
-  createProductSchema,
-  CreateProductValues,
-  ProductType
-} from "@/lib/validations/product-schema";
+import { productSchema, ProductFormValues } from "@/lib/validations/product-schema";
 import ReactMarkdown from 'react-markdown';
 import { useDropzone } from 'react-dropzone';
+import { ProductType } from "@/store/use-product-store";
+import { useProducts } from "@/hooks/use-products";
 
 export default function CreateProductPage() {
   const [loading, setLoading] = useState(false);
@@ -33,16 +31,20 @@ export default function CreateProductPage() {
   const [description, setDescription] = useState('');
   const [images, setImages] = useState<File[]>([]);
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { fetchProducts, addProduct } = useProducts();
 
-  const form = useForm<CreateProductValues>({
-    resolver: zodResolver(createProductSchema),
+  const form = useForm<ProductFormValues>({
+    resolver: zodResolver(productSchema),
     defaultValues: {
       name: "",
-      description: "",
-      price: 0,
+      shortDescription: "",
+      longDescription: "",
+      unitPrice: 0,
+      unit: "",
+      photoUrl: "",
       productTypeId: "",
-      available: true,
+      instructions: "",
+      nutritionDetails: "",
     },
   });
 
@@ -50,8 +52,11 @@ export default function CreateProductPage() {
     const fetchProductTypes = async () => {
       try {
         setLoading(true);
-        const productTypes = await api.get('/product-types');
-        setProductTypes(productTypes as ProductType[]);
+        // For now, we'll use dummy data until we implement the proper API
+        setProductTypes([
+          { id: '1', name: 'Food', key: 'food', schema: {}, icon_url: '', cover_url: '' },
+          { id: '2', name: 'Drink', key: 'drink', schema: {}, icon_url: '', cover_url: '' }
+        ]);
       } catch (error) {
         console.error('Error fetching product types:', error);
         toast.error('Failed to fetch product types');
@@ -61,7 +66,7 @@ export default function CreateProductPage() {
     };
     
     fetchProductTypes();
-  }, [toast]);
+  }, []);
 
   const { getRootProps, getInputProps } = useDropzone({
     accept: {
@@ -72,13 +77,34 @@ export default function CreateProductPage() {
     },
   });
 
-  async function onSubmit(data: CreateProductValues) {
+  async function onSubmit(data: ProductFormValues) {
     setLoading(true);
     try {
-      // Placeholder for API integration to create a product
-      console.log("Form data submitted:", data);
-      toast.success("Product created successfully!");
-      navigate("/products"); // Redirect to products page after successful creation
+      // Prepare the product data for submission
+      const productData = {
+        product_type_id: data.productTypeId || '',
+        name: data.name,
+        short_description: data.shortDescription || null,
+        long_description: data.longDescription || null,
+        instructions: data.instructions || null,
+        nutrition_details: data.nutritionDetails || null,
+        unit_price: data.unitPrice,
+        photo_url: data.photoUrl || null,
+        unit: data.unit || null,
+        data: {
+          instructions: data.instructions,
+          nutrition_details: data.nutritionDetails
+        },
+        stripe_product_id: null,
+      };
+
+      const result = await addProduct(productData);
+      if (result) {
+        toast.success("Product created successfully!");
+        navigate("/products"); // Redirect to products page after successful creation
+      } else {
+        throw new Error("Failed to create product");
+      }
     } catch (error) {
       console.error("Failed to create product:", error);
       toast.error("Failed to create product. Please try again.");

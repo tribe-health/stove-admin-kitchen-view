@@ -20,6 +20,7 @@ export interface Product {
   short_description: string;
   long_description: string;
   instructions: string;
+  nutrition_details: string;
   unit_price: number;
   photo_url: string;
   unit: string;
@@ -34,6 +35,7 @@ export interface ProductInput {
   short_description: string | null;
   long_description: string | null;
   instructions: string | null;
+  nutrition_details: string | null;
   unit_price: number;
   photo_url: string | null;
   unit: string | null;
