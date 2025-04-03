@@ -19,6 +19,8 @@ export interface Product {
   stripe_product_id: string;
   short_description: string;
   long_description: string;
+  instructions: string;
+  nutrition_details: string;
   unit_price: number;
   photo_url: string;
   unit: string;
@@ -32,6 +34,8 @@ export interface ProductInput {
   name: string;
   short_description: string | null;
   long_description: string | null;
+  instructions: string | null;
+  nutrition_details: string | null;
   unit_price: number;
   photo_url: string | null;
   unit: string | null;
@@ -39,13 +43,30 @@ export interface ProductInput {
   stripe_product_id: string | null;
 }
 
+export interface EditingProduct {
+  input: ProductInput;
+  product: Product;
+  is_dirty: boolean;
+}
+
 interface ProductState {
   products: Product[];
+  productTypes: ProductType[];
+  editingProductMap: Map<string, EditingProduct>;
   isLoading: boolean;
   error: Error | null;
   fetchProducts: () => Promise<void>;
+  fetchProductTypes: () => Promise<void>;
   addProduct: (product: ProductInput) => Promise<Product | null>;
   updateProduct: (id: string, product: ProductInput) => Promise<Product | null>;
+  editingProduct: EditingProduct | null;
+  setEditingProduct: (editingProduct: EditingProduct) => void;
+  saveEditingProduct: (editingProduct: EditingProduct) => void;
+  getEditingProduct: (id: string) => EditingProduct | null;
+  createEditingProduct: (product: Product) => EditingProduct;
+  createInput: ProductInput | null;
+  setCreateInput: (input: ProductInput) => void;
+  deleteProduct: (id: string) => Promise<void>;
 }
 
 type ProductWithType = Database['public']['Tables']['products']['Row'] & {
@@ -60,8 +81,53 @@ type Json = JsonValue | { [key: string]: JsonValue } | JsonValue[];
 
 export const useProductStore = create<ProductState>((set, get) => ({
   products: [],
+  productTypes: [],
+  editingProductMap: new Map(),
   isLoading: false,
   error: null,
+  editingProduct: null,
+  createInput: null,
+  setCreateInput: (input: ProductInput) => set({ createInput: input }),
+  setEditingProduct: (editingProduct: EditingProduct) => {
+    // Save to the map first
+    set((state) => {
+      const newEditingProductMap = new Map(state.editingProductMap);
+      newEditingProductMap.set(editingProduct.product.id, { ...editingProduct });
+      return {
+        editingProduct,
+        editingProductMap: newEditingProductMap
+      };
+    });
+  },
+  saveEditingProduct: (editingProduct: EditingProduct) => {
+    set((state) => {
+      const newEditingProductMap = new Map(state.editingProductMap);
+      newEditingProductMap.set(editingProduct.product.id, editingProduct);
+      return { editingProductMap: newEditingProductMap };
+    });
+  },
+  getEditingProduct: (id: string) => {
+    return get().editingProductMap.get(id) || null;
+  },
+  createEditingProduct: (product: Product) => {
+    return {
+      input: {
+        product_type_id: product.product_type_id,
+        name: product.name,
+        short_description: product.short_description,
+        long_description: product.long_description,
+        instructions: product.instructions,
+        nutrition_details: product.nutrition_details,
+        unit_price: product.unit_price,
+        photo_url: product.photo_url,
+        unit: product.unit,
+        data: product.data,
+        stripe_product_id: product.stripe_product_id,
+      },
+      product: product,
+      is_dirty: false,
+    };
+  },
   fetchProducts: async () => {
     try {
       set({ isLoading: true, error: null });
@@ -124,6 +190,28 @@ export const useProductStore = create<ProductState>((set, get) => ({
       return null;
     }
   },
+  fetchProductTypes: async () => {
+    try {
+      set({ isLoading: true, error: null });
+      const { data, error } = await supabase
+        .from('product_types')
+        .select('*');
+      
+      if (error) {
+        throw error;
+      }
+
+      if (!data) {
+        set({ productTypes: [], isLoading: false });
+        return;
+      }
+
+      set({ productTypes: data as ProductType[], isLoading: false });
+    } catch (error) {
+      set({ error: error as Error, isLoading: false });
+    }
+  },
+  
   updateProduct: async (id: string, product: ProductInput) => {
     try {
       set({ isLoading: true, error: null });
@@ -159,12 +247,40 @@ export const useProductStore = create<ProductState>((set, get) => ({
       const updatedProducts = get().products.map(p => 
         p.id === id ? mappedProduct : p
       );
-      
+
+      // delete from editing product map
+      get().editingProductMap.delete(id);
+
       set({ products: updatedProducts, isLoading: false });
       return mappedProduct;
     } catch (error) {
       set({ error: error as Error, isLoading: false });
       return null;
+    }
+  },
+  deleteProduct: async (id: string) => {
+    try {
+      set({ isLoading: true, error: null });
+
+      const { error } = await supabase
+        .from('products')
+          .delete()
+        .eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+
+      // remove this product from the current list and update the store
+      const updatedProducts = get().products.filter(p => p.id !== id);
+      set({ products: updatedProducts });
+
+      // delete from editing map if it is there 
+      get().editingProductMap.delete(id);
+
+      set({ isLoading: false });
+    } catch (error) {
+      set({ error: error as Error, isLoading: false });
     }
   }
 }))

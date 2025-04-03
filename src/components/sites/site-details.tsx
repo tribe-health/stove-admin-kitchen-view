@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,6 @@ import { X, MapPin, Building, Phone, Mail, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteStationDetails } from "./site-station-details";
 
-// Define proper interfaces for your data
 interface Site {
   id: string;
   name: string;
@@ -51,11 +49,14 @@ interface Station {
   created_at: string;
   number?: number;
   address1?: string;
+  address_id?: string;
   latitude?: number;
   longitude?: number;
   registration_code?: string;
   description?: string;
   long_description?: string;
+  cover_url?: string;
+  image_url?: string;
 }
 
 export interface SiteDetailsProps {
@@ -81,7 +82,6 @@ export function SiteDetails({ siteId, onClose }: SiteDetailsProps) {
   async function fetchSiteDetails() {
     setLoading(true);
     try {
-      // Fetch site details
       const { data: siteData, error: siteError } = await supabase
         .from('site')
         .select('*')
@@ -92,7 +92,6 @@ export function SiteDetails({ siteId, onClose }: SiteDetailsProps) {
       if (siteData) {
         setSite(siteData as Site);
 
-        // Fetch site type
         const { data: typeData, error: typeError } = await supabase
           .from('site_type')
           .select('*')
@@ -103,7 +102,6 @@ export function SiteDetails({ siteId, onClose }: SiteDetailsProps) {
         if (typeData) {
           setSiteType(typeData as SiteType);
 
-          // If site type has a managing_table, fetch related data
           if (typeData.managing_table === 'stations') {
             const { data: stationData, error: stationError } = await supabase
               .from('stations')
@@ -114,12 +112,11 @@ export function SiteDetails({ siteId, onClose }: SiteDetailsProps) {
             if (stationError) {
               console.error('Error fetching station details:', stationError);
             } else if (stationData) {
-              setStationDetails(stationData as Station);
+              setStationDetails(stationData as unknown as Station);
             }
           }
         }
 
-        // Fetch organization
         const { data: orgData, error: orgError } = await supabase
           .from('organization')
           .select('*')

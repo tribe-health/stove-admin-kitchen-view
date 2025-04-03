@@ -651,6 +651,7 @@ export type Database = {
           instructions: string | null
           long_description: string | null
           name: string
+          nutrition_details: string | null
           photo_url: string | null
           product_type_id: string | null
           short_description: string | null
@@ -666,6 +667,7 @@ export type Database = {
           instructions?: string | null
           long_description?: string | null
           name: string
+          nutrition_details?: string | null
           photo_url?: string | null
           product_type_id?: string | null
           short_description?: string | null
@@ -681,6 +683,7 @@ export type Database = {
           instructions?: string | null
           long_description?: string | null
           name?: string
+          nutrition_details?: string | null
           photo_url?: string | null
           product_type_id?: string | null
           short_description?: string | null

@@ -1,66 +1,62 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import 'leaflet/dist/leaflet.css';
+import 'leaflet-defaulticon-compatibility';
+import 'leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMap, ZoomControl } from 'react-leaflet';
 import { MapPin, Clock, Layers } from 'lucide-react';
 import { DeliveryLocation } from '@/store/use-delivery-locations-store';
-import Map, {
-  Marker, 
-  Popup, 
-  NavigationControl, 
-  FullscreenControl, 
-  Source, 
-  Layer
-} from 'react-map-gl/mapbox-legacy';
-import 'mapbox-gl/dist/mapbox-gl.css';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import L from 'leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 
-const mapBoxToken = 'pk.eyJ1IjoiZ3FhZG9uaXMiLCJhIjoiY2o4bzdnZXc2MDA1ZTJ3cnp5cTM3N2p2bCJ9.Mp12t4wj_L2KAzQocwCuWQ';
+// CSS for the map container
+const mapContainerStyle = {
+  height: '430px',
+  width: '100%',
+  borderRadius: '0.5rem',
+  overflow: 'hidden'
+};
 
 interface DeliveryLocationsMapProps {
   locations: DeliveryLocation[];
   isLoading: boolean;
 }
 
+// Component to handle map bounds and centering
+function MapController({ bounds }: { bounds: L.LatLngBoundsExpression | null }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (bounds) {
+      map.fitBounds(bounds);
+    }
+  }, [bounds, map]);
+  
+  return null;
+}
+
+// Component to handle map reference
+function MapReference({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null> }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    mapRef.current = map;
+  }, [map, mapRef]);
+  
+  return null;
+}
+
 export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocationsMapProps) {
   const [selectedLocation, setSelectedLocation] = useState<DeliveryLocation | null>(null);
-  const [viewState, setViewState] = useState({
-    longitude: -77.0369,
-    latitude: 38.9072,
-    zoom: 14
-  });
   const [useClustering, setUseClustering] = useState(false);
   const [mapReady, setMapReady] = useState(false);
-  // Use a more specific type for the map reference
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mapRef = useRef<any>(null);
+  const mapRef = useRef<L.Map | null>(null);
 
-  // Convert locations to GeoJSON for clustering
-  const geojson = useMemo(() => {
-    const validLocations = locations.filter(
-      loc => loc.address.latitude && loc.address.longitude
-    );
-
-    return {
-      type: "FeatureCollection" as const,
-      features: validLocations.map(location => ({
-        type: "Feature" as const,
-        properties: {
-          id: location.id,
-          name: location.name,
-          address: location.address.address,
-          city: location.address.city,
-          state: location.address.state,
-          zip: location.address.zip,
-          start_open_time: location.start_open_time,
-          end_open_time: location.end_open_time,
-        },
-        geometry: {
-          type: "Point" as const,
-          coordinates: [location.address.longitude, location.address.latitude]
-        }
-      }))
-    };
-  }, [locations]);
+  // Default center position if no locations
+  const defaultCenter: [number, number] = [38.9072, -77.0369];
+  const defaultZoom = 14;
 
   // Calculate map bounds based on locations
   const bounds = useMemo(() => {
@@ -70,24 +66,12 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
     
     if (validLocations.length === 0) return null;
     
-    const minLng = Math.min(...validLocations.map(loc => loc.address.longitude));
-    const maxLng = Math.max(...validLocations.map(loc => loc.address.longitude));
-    const minLat = Math.min(...validLocations.map(loc => loc.address.latitude));
-    const maxLat = Math.max(...validLocations.map(loc => loc.address.latitude));
+    const latLngs = validLocations.map(loc => [
+      loc.address.latitude,
+      loc.address.longitude
+    ] as [number, number]);
     
-    // Add some padding
-    const lngPadding = (maxLng - minLng) * 0.1;
-    const latPadding = (maxLat - minLat) * 0.1;
-    
-    return {
-      longitude: (minLng + maxLng) / 2,
-      latitude: (minLat + maxLat) / 2,
-      zoom: 13,
-      bounds: [
-        [minLng - lngPadding, minLat - latPadding], 
-        [maxLng + lngPadding, maxLat + latPadding]
-      ]
-    };
+    return L.latLngBounds(latLngs).pad(0.1);
   }, [locations]);
 
   // Force map to render regardless of loading state
@@ -99,33 +83,6 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
     
     return () => clearTimeout(timer);
   }, []);
-  
-  // Update view state when bounds change
-  useEffect(() => {
-    if (bounds) {
-      setViewState({
-        longitude: bounds.longitude,
-        latitude: bounds.latitude,
-        zoom: bounds.zoom
-      });
-      
-      // If map is already rendered, fly to the new bounds
-      if (mapRef.current && mapReady) {
-        try {
-          const map = mapRef.current.getMap();
-          if (map) {
-            map.flyTo({
-              center: [bounds.longitude, bounds.latitude],
-              zoom: bounds.zoom,
-              essential: true
-            });
-          }
-        } catch (error) {
-          console.error('Error flying to bounds:', error);
-        }
-      }
-    }
-  }, [bounds, mapReady]);
 
   // Debug location coordinates
   useEffect(() => {
@@ -142,46 +99,6 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
     }
   }, [locations, isLoading]);
 
-  const handleMarkerClick = (location: DeliveryLocation) => {
-    setSelectedLocation(location);
-    setViewState({
-      ...viewState,
-      longitude: location.address.longitude,
-      latitude: location.address.latitude
-    });
-  };
-
-  // Handle cluster click to zoom in
-  // Using 'any' type here due to complex MapBox API types that don't fully match the runtime behavior
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleClusterClick = (event: any) => {
-    // Check if we have features and if the first one has a cluster_id
-    if (!event.features || !event.features.length || !event.features[0].properties.cluster_id) {
-      return;
-    }
-    
-    const feature = event.features[0];
-    const clusterId = feature.properties.cluster_id;
-    
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const mapboxSource: any = event.target.getSource('delivery-locations');
-      
-      mapboxSource.getClusterExpansionZoom(clusterId, (err: Error | null, zoom: number) => {
-        if (err) return;
-        
-        setViewState({
-          ...viewState,
-          longitude: feature.geometry.coordinates[0],
-          latitude: feature.geometry.coordinates[1],
-          zoom: zoom
-        });
-      });
-    } catch (error) {
-      console.error('Error handling cluster click:', error);
-    }
-  };
-
   // Only show loading state if we're loading data and the map isn't ready yet
   if (isLoading && !mapReady) {
     return (
@@ -196,17 +113,38 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
     location => location.address.latitude && location.address.longitude
   );
 
+  // Create custom marker icon
+  const createCustomIcon = (location: DeliveryLocation) => {
+    return L.divIcon({
+      className: 'custom-marker-icon',
+      html: `
+        <div class="relative cursor-pointer">
+          <div style="color: var(--primary);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 text-primary hover:scale-110 transition-transform">
+              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+              <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+          </div>
+          <div class="absolute -top-1 -right-1 h-3 w-3 bg-green-500 rounded-full border-2 border-white"></div>
+        </div>
+      `,
+      iconSize: [24, 24],
+      iconAnchor: [12, 24],
+      popupAnchor: [0, -24]
+    });
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-4 items-center justify-between">
         <div className="flex gap-2">
           <Button 
             size="sm" 
-            onClick={() => bounds && setViewState({
-              longitude: bounds.longitude,
-              latitude: bounds.latitude,
-              zoom: bounds.zoom
-            })}
+            onClick={() => {
+              if (bounds && mapRef.current) {
+                mapRef.current.fitBounds(bounds);
+              }
+            }}
             disabled={!bounds}
           >
             Center Map
@@ -237,149 +175,99 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
           </div>
         )}
         
-        <div className="absolute inset-0">
-          <Map
-            ref={mapRef}
-            mapboxAccessToken={mapBoxToken}
-            {...viewState}
-            onMove={evt => setViewState(evt.viewState)}
-            onClick={useClustering ? handleClusterClick : undefined}
-            style={{width: '100%', height: '100%'}}
-            mapStyle="mapbox://styles/mapbox/streets-v9"
-            interactiveLayerIds={useClustering ? ['clusters'] : undefined}
-            onLoad={() => {
-              console.log('Map loaded successfully');
-              setMapReady(true);
-            }}
-          >
-            {/* Add map controls */}
-            <NavigationControl />
-            <FullscreenControl />
-            
-            {/* Render either individual markers or clustered view based on toggle */}
-            {useClustering ? (
-              <Source
-                id="delivery-locations"
-                type="geojson"
-                data={geojson}
-                cluster={true}
-                clusterMaxZoom={14}
-                clusterRadius={50}
-              >
-                {/* Clustered points */}
-                <Layer
-                  id="clusters"
-                  type="circle"
-                  filter={['has', 'point_count']}
-                  paint={{
-                    'circle-color': [
-                      'step',
-                      ['get', 'point_count'],
-                      '#51bbd6', // Small clusters
-                      5,
-                      '#f1f075', // Medium clusters
-                      10,
-                      '#f28cb1'  // Large clusters
-                    ],
-                    'circle-radius': [
-                      'step',
-                      ['get', 'point_count'],
-                      20, // Small clusters
-                      5,
-                      30, // Medium clusters
-                      10,
-                      40  // Large clusters
-                    ]
-                  }}
-                />
+        <MapContainer 
+          center={defaultCenter} 
+          zoom={defaultZoom} 
+          style={mapContainerStyle}
+          zoomControl={false}
+          whenReady={() => setMapReady(true)}
+        >
+          <MapReference mapRef={mapRef} />
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          <ZoomControl position="bottomright" />
+          <MapController bounds={bounds} />
+          
+          {useClustering ? (
+            <MarkerClusterGroup>
+              {locations.map(location => {
+                if (!location.address.latitude || !location.address.longitude) return null;
                 
-                {/* Cluster count labels */}
-                <Layer
-                  id="cluster-count"
-                  type="symbol"
-                  filter={['has', 'point_count']}
-                  layout={{
-                    'text-field': '{point_count_abbreviated}',
-                    'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Bold'],
-                    'text-size': 12
-                  }}
-                  paint={{}} // Add empty paint object to satisfy TypeScript
-                />
-                
-                {/* Unclustered points */}
-                <Layer
-                  id="unclustered-point"
-                  type="circle"
-                  filter={['!', ['has', 'point_count']]}
-                  paint={{
-                    'circle-color': '#11b4da',
-                    'circle-radius': 8,
-                    'circle-stroke-width': 1,
-                    'circle-stroke-color': '#fff'
-                  }}
-                />
-              </Source>
-            ) : (
-              // Individual markers
-              locations.map(location => 
-                location.address.latitude && location.address.longitude ? (
+                return (
                   <Marker 
-                    key={location.id} 
-                    longitude={location.address.longitude} 
-                    latitude={location.address.latitude}
-                    onClick={e => {
-                      e.originalEvent.stopPropagation();
-                      handleMarkerClick(location);
+                    key={location.id}
+                    position={[location.address.latitude, location.address.longitude]}
+                    icon={createCustomIcon(location)}
+                    eventHandlers={{
+                      click: () => setSelectedLocation(location)
                     }}
                   >
-                    <div className="relative cursor-pointer">
-                      <MapPin 
-                        className="h-5 w-5 text-primary hover:scale-110 transition-transform" 
-                        fill="currentColor"
-                      />
-                      {/* Food delivery status indicator */}
-                      <div className="absolute -top-1 -right-1 h-3 w-3 bg-green-500 rounded-full border-2 border-white" />
-                    </div>
+                    <Popup>
+                      <div className="p-2 max-w-[250px]">
+                        <h3 className="font-bold text-base">{location.name}</h3>
+                        <p className="text-sm">{location.address.address}</p>
+                        <p className="text-sm">{location.address.city}, {location.address.state} {location.address.zip}</p>
+                        
+                        {location.start_open_time && location.end_open_time && (
+                          <div className="flex items-center mt-2 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3 mr-1" />
+                            <span>{location.start_open_time} - {location.end_open_time}</span>
+                          </div>
+                        )}
+                        
+                        <div className="mt-3 flex justify-end">
+                          <button className="bg-transparent hover:bg-accent text-xs border border-input rounded px-3 py-1">
+                            View Details
+                          </button>
+                        </div>
+                      </div>
+                    </Popup>
                   </Marker>
-                ) : null
-              )
-            )}
-            
-            {/* Show popup for selected location */}
-            {selectedLocation && selectedLocation.address.latitude && selectedLocation.address.longitude && (
-              <Popup
-                longitude={selectedLocation.address.longitude}
-                latitude={selectedLocation.address.latitude}
-                onClose={() => setSelectedLocation(null)}
-                closeButton={true}
-                closeOnClick={false}
-                className="z-10"
-              >
-                <div className="p-2 max-w-[250px]">
-                  <h3 className="font-bold text-base">{selectedLocation.name}</h3>
-                  <p className="text-sm">{selectedLocation.address.address}</p>
-                  <p className="text-sm">{selectedLocation.address.city}, {selectedLocation.address.state} {selectedLocation.address.zip}</p>
-                  
-                  {selectedLocation.start_open_time && selectedLocation.end_open_time && (
-                    <div className="flex items-center mt-2 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3 mr-1" />
-                      <span>
-                        {selectedLocation.start_open_time} - {selectedLocation.end_open_time}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {/* Action button */}
-                  <div className="mt-3 flex justify-end">
-                    <Button size="sm" variant="outline" className="text-xs h-7">
-                      View Details
-                    </Button>
-                  </div>
-                </div>
-              </Popup>
-            )}
-          </Map>
-        </div>
+                );
+              })}
+            </MarkerClusterGroup>
+          ) : (
+            <>
+              {locations.map(location => {
+                if (!location.address.latitude || !location.address.longitude) return null;
+                
+                return (
+                  <Marker 
+                    key={location.id}
+                    position={[location.address.latitude, location.address.longitude]}
+                    icon={createCustomIcon(location)}
+                    eventHandlers={{
+                      click: () => setSelectedLocation(location)
+                    }}
+                  >
+                    <Popup>
+                      <div className="p-2 max-w-[250px]">
+                        <h3 className="font-bold text-base">{location.name}</h3>
+                        <p className="text-sm">{location.address.address}</p>
+                        <p className="text-sm">{location.address.city}, {location.address.state} {location.address.zip}</p>
+                        
+                        {location.start_open_time && location.end_open_time && (
+                          <div className="flex items-center mt-2 text-xs text-muted-foreground">
+                            <Clock className="h-3 w-3 mr-1" />
+                            <span>{location.start_open_time} - {location.end_open_time}</span>
+                          </div>
+                        )}
+                        
+                        <div className="mt-3 flex justify-end">
+                          <button className="bg-transparent hover:bg-accent text-xs border border-input rounded px-3 py-1">
+                            View Details
+                          </button>
+                        </div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              })}
+            </>
+          )}
+        </MapContainer>
       </div>
       
       {/* Legend */}

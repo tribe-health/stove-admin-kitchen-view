@@ -27,7 +27,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import MarkdownEditor from "@/components/editor/markdown-editor";
+import SimpleMarkdownEditor from "@/components/editor/simple-markdown-editor";
 import { ImageUploader } from "@/components/ui/image-uploader";
 import { ProductFormValues, productSchema } from "@/lib/validations/product-schema";
 import { toast } from "sonner";
@@ -205,14 +205,16 @@ export function ProductFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <MarkdownEditor 
-                        label="Long Description"
-                        markdown={field.value || ''} 
-                        onChange={field.onChange}
-                        onBlur={field.onBlur}
-                        onSave={(value) => handleSaveField('longDescription', value)}
-                        className="h-[300px]"
-                      />
+                      <div>
+                        <SimpleMarkdownEditor 
+                          label="Long Description"
+                          markdown={field.value || ''} 
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          onSave={(value) => handleSaveField('longDescription', value)}
+                          className="h-[300px]"
+                        />
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -225,14 +227,16 @@ export function ProductFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <MarkdownEditor 
-                        label="Nutrition Details"
-                        markdown={field.value || ''} 
-                        onChange={field.onChange}
-                        onBlur={field.onBlur}
-                        onSave={(value) => handleSaveField('nutritionDetails', value)}
-                        className="h-[300px]"
-                      />
+                      <div>
+                        <SimpleMarkdownEditor 
+                          label="Nutrition Details"
+                          markdown={field.value || ''} 
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          onSave={(value) => handleSaveField('nutritionDetails', value)}
+                          className="h-[300px]"
+                        />
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -245,14 +249,16 @@ export function ProductFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormControl>
-                      <MarkdownEditor 
-                        label="Cooking Instructions"
-                        markdown={field.value || ''} 
-                        onChange={field.onChange}
-                        onBlur={field.onBlur}
-                        onSave={(value) => handleSaveField('instructions', value)}
-                        className="h-[300px]"
-                      />
+                      <div>
+                        <SimpleMarkdownEditor 
+                          label="Cooking Instructions"
+                          markdown={field.value || ''} 
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          onSave={(value) => handleSaveField('instructions', value)}
+                          className="h-[300px]"
+                        />
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -310,7 +316,10 @@ export function ProductFormDialog({
     </Dialog>
   ) : (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {dialogContent}
+      {/* When no trigger is provided, we still need to wrap dialogContent */}
+      <div>
+        {dialogContent}
+      </div>
     </Dialog>
   );
 }
