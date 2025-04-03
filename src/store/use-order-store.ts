@@ -96,6 +96,10 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
         first_name: order.users.first_name,
         last_name: order.users.last_name,
         phone_number: order.users.phone_number,
+        handle: order.users.handle || '',
+        did: order.users.did || '',
+        pds_url: order.users.pds_url || '',
+        created_at: order.users.created_at || order.created_at
       }));
 
       const orderItemsMap: Record<string, OrderItem[]> = {};
@@ -186,6 +190,10 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
         first_name: dbOrder.users.first_name,
         last_name: dbOrder.users.last_name,
         phone_number: dbOrder.users.phone_number,
+        handle: dbOrder.users.handle || '',
+        did: dbOrder.users.did || '',
+        pds_url: dbOrder.users.pds_url || '',
+        created_at: dbOrder.users.created_at || dbOrder.created_at
       };
 
       const orderItems: OrderItem[] = dbOrder.order_items.map((item) => ({
@@ -288,6 +296,10 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
         first_name: dbOrder.users.first_name,
         last_name: dbOrder.users.last_name,
         phone_number: dbOrder.users.phone_number,
+        handle: dbOrder.users.handle || '',
+        did: dbOrder.users.did || '',
+        pds_url: dbOrder.users.pds_url || '',
+        created_at: dbOrder.users.created_at || dbOrder.created_at
       };
 
       const orderItems: OrderItem[] = dbOrder.order_items.map((item) => ({
@@ -382,6 +394,10 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
         first_name: dbOrder.users.first_name,
         last_name: dbOrder.users.last_name,
         phone_number: dbOrder.users.phone_number,
+        handle: dbOrder.users.handle || '',
+        did: dbOrder.users.did || '',
+        pds_url: dbOrder.users.pds_url || '',
+        created_at: dbOrder.users.created_at || dbOrder.created_at
       };
 
       const orderItems: OrderItem[] = dbOrder.order_items.map((item) => ({

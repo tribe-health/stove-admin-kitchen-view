@@ -52,7 +52,7 @@ export default function ViewOrder() {
     };
 
     fetchOrder();
-  }, [id, getOrderById, navigate, toast]);
+  }, [id, navigate, toast]);
 
   const getStatusBadge = (orderStatus: OrderStatus) => {
     const statusConfig: Record<OrderStatus, { variant: "default" | "destructive" | "outline" | "secondary"; label: string }> = {

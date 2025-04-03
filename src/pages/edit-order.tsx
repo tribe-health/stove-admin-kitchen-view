@@ -29,12 +29,17 @@ export default function EditOrder() {
   const [status, setStatus] = useState<OrderStatus>("placed");
 
   useEffect(() => {
+    let isMounted = true;
+    
     const fetchOrder = async () => {
       if (!id) return;
       
       try {
         setLoading(true);
         const orderData = await getOrderById(id);
+        
+        // Only update state if component is still mounted
+        if (!isMounted) return;
         
         // Only update state if we have valid order data
         if (orderData) {
@@ -43,16 +48,16 @@ export default function EditOrder() {
           setStatus(orderData.order_status);
           setLoading(false);
         } else {
-          // Don't set loading to false yet to prevent UI flash
+          setLoading(false); // Set loading to false before navigation
           toast({
             title: "Order not found",
             description: "The requested order could not be found.",
             variant: "destructive",
           });
-          // Navigate without updating loading state to prevent UI flash
           navigate("/orders");
         }
       } catch (error) {
+        if (!isMounted) return;
         toast({
           title: "Error loading order",
           description: `There was an error loading the order: ${(error as Error).message}`,
@@ -63,7 +68,12 @@ export default function EditOrder() {
     };
 
     fetchOrder();
-  }, [id, getOrderById, navigate, toast]);
+    
+    // Cleanup function to prevent state updates after unmount
+    return () => {
+      isMounted = false;
+    };
+  }, [id, navigate, toast]);
 
   const handleSave = async () => {
     if (!order || !id) return;

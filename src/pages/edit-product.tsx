@@ -34,7 +34,6 @@ export default function EditProductPage() {
   const [isLoadingProduct, setIsLoadingProduct] = useState(true);
   const [isLoadingTypes, setIsLoadingTypes] = useState(true);
 
-  // Initialize the form with validation schema
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
     defaultValues: {
@@ -50,7 +49,6 @@ export default function EditProductPage() {
     },
   });
 
-  // Load product and product types on component mount
   useEffect(() => {
     const loadData = async () => {
       if (!id) return;
@@ -109,7 +107,6 @@ export default function EditProductPage() {
     loadData();
   }, [id, fetchProductById, fetchProductTypes, getEditingProduct, form, navigate, toast]);
 
-  // Form submission handler
   const onSubmit = async (data: ProductFormValues) => {
     if (!id) return;
     
@@ -186,7 +183,6 @@ export default function EditProductPage() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {/* Basic Information */}
             <Card>
               <CardHeader>
                 <CardTitle>Basic Information</CardTitle>
@@ -308,7 +304,6 @@ export default function EditProductPage() {
               </CardContent>
             </Card>
 
-            {/* Images and Media */}
             <Card>
               <CardHeader>
                 <CardTitle>Images & Media</CardTitle>

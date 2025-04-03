@@ -34,7 +34,6 @@ export default function CreateProductPage() {
   const [isDirty, setIsDirty] = useState(false);
   const [savedToDatabase, setSavedToDatabase] = useState(false);
 
-  // Initialize the form with validation schema
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
     defaultValues: {
@@ -178,7 +177,6 @@ export default function CreateProductPage() {
   async function onCreate(data: ProductFormValues) {
     setLoading(true);
     try {
-      // Convert form data to the format expected by the API
       const productData = {
         name: data.name,
         unit: data.unit || null,
