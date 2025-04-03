@@ -19,6 +19,7 @@ export interface Product {
   stripe_product_id: string;
   short_description: string;
   long_description: string;
+  instructions: string;
   unit_price: number;
   photo_url: string;
   unit: string;
@@ -32,8 +33,6 @@ export interface ProductInput {
   name: string;
   short_description: string | null;
   long_description: string | null;
-  instrutions: string | null;
-  nutrition_details: string | null;
   unit_price: number;
   photo_url: string | null;
   unit: string | null;
