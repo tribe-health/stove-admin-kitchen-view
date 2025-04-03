@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { MapPin, Clock, Layers } from 'lucide-react';
 import { DeliveryLocation } from '@/store/use-delivery-locations-store';
 import Map, {
@@ -9,7 +9,6 @@ import Map, {
   Source, 
   Layer
 } from 'react-map-gl/mapbox-legacy';
-import type { MapLayerMouseEvent } from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
