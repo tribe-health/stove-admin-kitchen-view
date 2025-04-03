@@ -5,6 +5,8 @@ import Index from "./pages/index";
 import Login from "./pages/login";
 import Dashboard from "./pages/dashboard";
 import Orders from "./pages/orders";
+import ViewOrder from "./pages/view-order";
+import EditOrder from "./pages/edit-order";
 import Products from "./pages/products";
 import CreateProductPage from "./pages/create-product";
 import EditProductPage from "./pages/edit-product";
@@ -59,10 +61,16 @@ function App() {
         
         {/* Admin routes with AdminLayout */}
         <Route path="/dashboard" element={<AdminLayout><Dashboard /></AdminLayout>} />
+        
+        {/* Order routes */}
         <Route path="/orders" element={<AdminLayout><Orders /></AdminLayout>} />
+        <Route path="/orders/:id" element={<AdminLayout><ViewOrder /></AdminLayout>} />
+        <Route path="/orders/edit/:id" element={<AdminLayout><EditOrder /></AdminLayout>} />
+        
+        {/* Product routes */}
         <Route path="/products" element={<AdminLayout><Products /></AdminLayout>} />
-        <Route path="/products/create" element={<CreateProductPage />} />
-        <Route path="/products/edit/:id" element={<EditProductPage />} />
+        <Route path="/products/create" element={<AdminLayout><CreateProductPage /></AdminLayout>} />
+        <Route path="/products/edit/:id" element={<AdminLayout><EditProductPage /></AdminLayout>} />
         <Route path="/sites" element={<AdminLayout><Sites /></AdminLayout>} />
         <Route path="/users" element={<AdminLayout><Users /></AdminLayout>} />
         <Route path="/delivery-locations" element={<AdminLayout><DeliveryLocations /></AdminLayout>} />

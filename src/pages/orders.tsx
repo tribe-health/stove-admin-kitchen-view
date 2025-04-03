@@ -1,5 +1,5 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -22,20 +22,24 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Search, MoreHorizontal, Filter } from "lucide-react";
+import { Search, MoreHorizontal, Filter, Edit, Trash2, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useOrders } from "@/hooks/use-orders";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Order } from "@/store/use-order-store";
-import { stat } from "fs";
 
-type OrderStatus = "placed" | "in_progress" | "made" | "out_for_delivery" | "delivered" | "canceled" | "error";
+import { OrderStatus } from "@/store/use-order-store";
 
 export default function Orders() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>('placed');
-  const { orders } = useOrders();
-  const [filteredOrders, setFilteredOrders] = useState<Order[]>(orders);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const { orders, removeOrder, formatOrderDate, formatCurrency } = useOrders();
+  const [filteredOrders, setFilteredOrders] = useState(orders);
+  const [orderToDelete, setOrderToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
@@ -47,13 +51,27 @@ export default function Orders() {
     applyFilters(searchTerm, status);
   };
 
+  useEffect(() => {
+    // Only apply filters if orders array exists and has items
+    if (orders && orders.length >= 0) {
+      applyFilters(searchTerm, statusFilter);
+    }
+  }, [orders, searchTerm, statusFilter]);
+
   const applyFilters = (term: string, status: string) => {
-    let result = orders;
+    // Check if orders exist before trying to filter them
+    if (!orders || orders.length === 0) {
+      setFilteredOrders([]);
+      return;
+    }
+    
+    let result = [...orders];
 
     if (term) {
-      result = result.filter(order => 
-        order.user.first_name.toLowerCase().includes(term.toLowerCase()) ||
-        order.user.last_name.toLowerCase().includes(term.toLowerCase())
+      result = result.filter(order =>
+        order.user?.first_name?.toLowerCase().includes(term.toLowerCase()) ||
+        order.user?.last_name?.toLowerCase().includes(term.toLowerCase()) ||
+        order.id.toLowerCase().includes(term.toLowerCase())
       );
     }
 
@@ -64,7 +82,24 @@ export default function Orders() {
     setFilteredOrders(result);
   };
 
-  const getStatusBadge = (status) => {
+  const handleDeleteOrder = async (id: string) => {
+    setIsDeleting(true);
+    const success = await removeOrder(id);
+    if (success) {
+      setOrderToDelete(null);
+    }
+    setIsDeleting(false);
+  };
+
+  const handleViewOrder = (id: string) => {
+    navigate(`/orders/${id}`);
+  };
+
+  const handleEditOrder = (id: string) => {
+    navigate(`/orders/edit/${id}`);
+  };
+
+  const getStatusBadge = (status: OrderStatus) => {
     const statusConfig: Record<OrderStatus, { variant: "default" | "destructive" | "outline" | "secondary"; label: string }> = {
       placed: { variant: "outline", label: "Placed" },
       in_progress: { variant: "secondary", label: "In Progress" },
@@ -86,7 +121,12 @@ export default function Orders() {
           <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
           <p className="text-muted-foreground">Manage and view all food orders.</p>
         </div>
-        <Button>Export Orders</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate("/dashboard")}>
+            Dashboard
+          </Button>
+          <Button>Export Orders</Button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-4 md:flex-row md:items-center">
@@ -120,29 +160,119 @@ export default function Orders() {
         </div>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Order ID</TableHead>
-              <TableHead>Last Name</TableHead>
-              <TableHead>First Name</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>Items</TableHead>
-              <TableHead className="w-[80px]"></TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredOrders.map((order) => (
+      {filteredOrders.length === 0 ? (
+        <div className="rounded-md border p-8 text-center">
+          <h3 className="text-lg font-medium mb-2">No Orders Found</h3>
+          <p className="text-muted-foreground">
+            {searchTerm || statusFilter !== 'all'
+              ? "No orders match your current filters. Try adjusting your search criteria."
+              : "There are no orders in the system yet."}
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Order ID</TableHead>
+                <TableHead>Last Name</TableHead>
+                <TableHead>First Name</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Items</TableHead>
+                <TableHead className="w-[80px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredOrders.map((order) => (
+                <TableRow key={order.id}>
+                  <TableCell className="font-medium">{order.id}</TableCell>
+                  <TableCell>{order.user.last_name}</TableCell>
+                  <TableCell>{order.user.first_name}</TableCell>
+                  <TableCell>{formatOrderDate(order.created_at)}</TableCell>
+                  <TableCell>{getStatusBadge(order.order_status)}</TableCell>
+                  <TableCell>{formatCurrency(order.total)}</TableCell>
+                  <TableCell>{order.order_items.length}</TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Actions</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleViewOrder(order.id)}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditOrder(order.id)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit Order
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem onSelect={(e) => {
+                              e.preventDefault();
+                              setOrderToDelete(order.id);
+                            }}>
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete Order
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete the order and all associated data.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => orderToDelete && handleDeleteOrder(orderToDelete)}
+                                disabled={isDeleting}
+                              >
+                                {isDeleting ? "Deleting..." : "Delete"}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+      ) : (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Order ID</TableHead>
+                <TableHead>Last Name</TableHead>
+                <TableHead>First Name</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Total</TableHead>
+                <TableHead>Items</TableHead>
+                <TableHead className="w-[80px]"></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredOrders.map((order) => (
               <TableRow key={order.id}>
                 <TableCell className="font-medium">{order.id}</TableCell>
                 <TableCell>{order.user.last_name}</TableCell>
                 <TableCell>{order.user.first_name}</TableCell>
-                <TableCell>{order.created_at}</TableCell>
+                <TableCell>{formatOrderDate(order.created_at)}</TableCell>
                 <TableCell>{getStatusBadge(order.order_status)}</TableCell>
-                <TableCell>{order.total}</TableCell>
+                <TableCell>{formatCurrency(order.total)}</TableCell>
                 <TableCell>{order.order_items.length}</TableCell>
                 <TableCell>
                   <DropdownMenu>
@@ -153,9 +283,43 @@ export default function Orders() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>View Details</DropdownMenuItem>
-                      <DropdownMenuItem>Update Status</DropdownMenuItem>
-                      <DropdownMenuItem>View Customer</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleViewOrder(order.id)}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View Details
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleEditOrder(order.id)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit Order
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <DropdownMenuItem onSelect={(e) => {
+                            e.preventDefault();
+                            setOrderToDelete(order.id);
+                          }}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete Order
+                          </DropdownMenuItem>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete the order and all associated data.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel onClick={() => setOrderToDelete(null)}>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => orderToDelete && handleDeleteOrder(orderToDelete)}
+                              disabled={isDeleting}
+                            >
+                              {isDeleting ? "Deleting..." : "Delete"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

@@ -7,6 +7,8 @@ import { Database } from '@/integrations/supabase/types';
 import { PostgrestError } from '@supabase/supabase-js';
 import { DbAddress } from '@/types';
 
+export type OrderStatus = 'placed' | 'in_progress' | 'made' | 'out_for_delivery' | 'delivered' | 'canceled' | 'error';
+
 export interface OrderItem {
   id: string;
   product_id: string;
@@ -18,9 +20,9 @@ export interface OrderItem {
 
 export interface Order {
   id: string;
-  order_status: string;
+  order_status: OrderStatus;
   notes: string;
- subtotal: number;
+  subtotal: number;
   tax: number;
   total: number;
   created_at: string;
@@ -44,7 +46,10 @@ interface OrderStoreState {
   isLoading: boolean;
   error: Error | null;
   fetchOrders: () => Promise<void>;
-  addOrder: (order: Omit<Order, 'id'>) => Promise<Order | null>;
+  fetchOrderById: (id: string) => Promise<Order | null>;
+  updateOrder: (id: string, order: Partial<Order>) => Promise<Order | null>;
+  deleteOrder: (id: string) => Promise<boolean>;
+  updateOrderStatus: (id: string, status: OrderStatus) => Promise<Order | null>;
 }
 
 type DbUser = Database['public']['Tables']['users']['Row'];
@@ -83,55 +88,52 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
         throw error;
       }
 
-    const dbOrders = data as unknown as DbOrder[];
+      const dbOrders = data as unknown as DbOrder[];
 
-    const transformedUsers: User[] = dbOrders.map((order) => ({
-      id: order.user_id,
-      email: order.users.email,
-      first_name: order.users.first_name,
-      last_name: order.users.last_name,
-      phone_number: order.users.phone_number,
-    }));
+      const transformedUsers: User[] = dbOrders.map((order) => ({
+        id: order.user_id,
+        email: order.users.email,
+        first_name: order.users.first_name,
+        last_name: order.users.last_name,
+        phone_number: order.users.phone_number,
+      }));
 
-    const orderItemsMap: Record<string, OrderItem[]> = {};
-    dbOrders.forEach((order) => {
-      orderItemsMap[order.id] = order.order_items.map((item) => ({
-        id: item.id,
-        product_id: item.product_id,
-        order_id: item.order_id,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        subtotal: item.quantity * item.unit_price
-        
-      }))
-    })
+      const orderItemsMap: Record<string, OrderItem[]> = {};
+      dbOrders.forEach((order) => {
+        orderItemsMap[order.id] = order.order_items.map((item) => ({
+          id: item.id,
+          product_id: item.product_id,
+          order_id: item.order_id,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          subtotal: item.quantity * item.unit_price
+        }))
+      })
 
-    const transformedLocations: DeliveryLocation[] = [];
-    dbOrders.forEach((order) => {
-      if (order.delivery_location) {
-        transformedLocations.push({
-          id: order.delivery_location.id,
-          name: order.delivery_location.name,
-          start_open_time: order.delivery_location.start_open_time,
-          end_open_time: order.delivery_location.end_open_time,
-          provider_id: order.delivery_location.provider_id,
-          delivery_period_id: order.delivery_location.delivery_period_id,
-          address: {
-            id: order.delivery_location.address.id,
-            name: order.delivery_location.address.name,
-            address: order.delivery_location.address!.address,
-            address1: order.delivery_location.address.address1,
-            city: order.delivery_location.address.city,
-            state: order.delivery_location.address.state,
-            zip: order.delivery_location.address.zip,
-            latitude: order.delivery_location.address.latitude,
-            longitude: order.delivery_location.address.longitude,
-          }
-        })
-      }
-        
-        });
-
+      const transformedLocations: DeliveryLocation[] = [];
+      dbOrders.forEach((order) => {
+        if (order.delivery_location) {
+          transformedLocations.push({
+            id: order.delivery_location.id,
+            name: order.delivery_location.name,
+            start_open_time: order.delivery_location.start_open_time,
+            end_open_time: order.delivery_location.end_open_time,
+            provider_id: order.delivery_location.provider_id,
+            delivery_period_id: order.delivery_location.delivery_period_id,
+            address: {
+              id: order.delivery_location.address.id,
+              name: order.delivery_location.address.name,
+              address: order.delivery_location.address!.address,
+              address1: order.delivery_location.address.address1,
+              city: order.delivery_location.address.city,
+              state: order.delivery_location.address.state,
+              zip: order.delivery_location.address.zip,
+              latitude: order.delivery_location.address.latitude,
+              longitude: order.delivery_location.address.longitude,
+            }
+          })
+        }
+      });
 
       const transformedOrders: Order[] = dbOrders.map((order) => ({
         id: order.id,
@@ -141,7 +143,7 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
         tax: order.tax,
         total: order.total,
         created_at: order.created_at,
-        delivery_location: transformedLocations.find((location) => location.id === order.delivery_location_id),
+        delivery_location: transformedLocations.find((location) => location.id === order.delivery_location_id) || null,
         user: transformedUsers.find((user) => user.id === order.user_id)!,
         order_items: orderItemsMap[order.id],
       }))
@@ -151,52 +153,325 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
       set({ error: error as Error, isLoading: false });
     }
   },
-  addOrder: async (order: Omit<Order, 'id'>) => {
+  fetchOrderById: async (id: string) => {
     try {
       set({ isLoading: true, error: null });
-
-      const orderStatus = 'placed';
-
-      const orderToInsert: OrderInsertInput = {
-        order_status: orderStatus,
-        notes: order.notes,
-        subtotal: order.subtotal,
-        tax: order.tax,
-        total: order.total,
-        delivery_location_id: order.delivery_location.id,
-        user_id: order.user.id,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
       const { data, error } = await supabase
         .from('orders')
-        .insert([orderToInsert])
-        .select();
+        .select(`
+          *,
+          delivery_location (
+            *,
+            address:address (*)
+          ),
+          users (*),
+          order_items (*)
+        `)
+        .eq('id', id)
+        .single() as { data: OrderWithDeliveryLocations | null, error: PostgrestError | null};
+      
       if (error) {
         throw error;
       }
 
-      const transformedOrder: Order = {
-        id: data[0].id,
-        order_status: data[0].order_status,
-        notes: data[0].notes,
-        subtotal: data[0].subtotal,
-        tax: data[0].tax,
-        total: data[0].total,
-        created_at: data[0].created_at,
-        delivery_location: order.delivery_location,
-        user: order.user,
-        order_items: order.order_items,
+      if (!data) {
+        return null;
       }
 
-      set({ 
-        isLoading: false,
-        orders: [...get().orders, transformedOrder] });
+      const dbOrder = data as unknown as DbOrder;
+
+      const transformedUser: User = {
+        id: dbOrder.user_id,
+        email: dbOrder.users.email,
+        first_name: dbOrder.users.first_name,
+        last_name: dbOrder.users.last_name,
+        phone_number: dbOrder.users.phone_number,
+      };
+
+      const orderItems: OrderItem[] = dbOrder.order_items.map((item) => ({
+        id: item.id,
+        product_id: item.product_id,
+        order_id: item.order_id,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        subtotal: item.quantity * item.unit_price
+      }));
+
+      let transformedLocation: DeliveryLocation | null = null;
+      if (dbOrder.delivery_location) {
+        transformedLocation = {
+          id: dbOrder.delivery_location.id,
+          name: dbOrder.delivery_location.name,
+          start_open_time: dbOrder.delivery_location.start_open_time,
+          end_open_time: dbOrder.delivery_location.end_open_time,
+          provider_id: dbOrder.delivery_location.provider_id,
+          delivery_period_id: dbOrder.delivery_location.delivery_period_id,
+          address: {
+            id: dbOrder.delivery_location.address.id,
+            name: dbOrder.delivery_location.address.name,
+            address: dbOrder.delivery_location.address!.address,
+            address1: dbOrder.delivery_location.address.address1,
+            city: dbOrder.delivery_location.address.city,
+            state: dbOrder.delivery_location.address.state,
+            zip: dbOrder.delivery_location.address.zip,
+            latitude: dbOrder.delivery_location.address.latitude,
+            longitude: dbOrder.delivery_location.address.longitude,
+          }
+        };
+      }
+
+      const transformedOrder: Order = {
+        id: dbOrder.id,
+        order_status: dbOrder.order_status,
+        notes: dbOrder.notes,
+        subtotal: dbOrder.subtotal,
+        tax: dbOrder.tax,
+        total: dbOrder.total,
+        created_at: dbOrder.created_at,
+        delivery_location: transformedLocation,
+        user: transformedUser,
+        order_items: orderItems,
+      };
+
+      set({ isLoading: false });
       return transformedOrder;
     } catch (error) {
       set({ error: error as Error, isLoading: false });
       return null;
+    }
+  },
+  updateOrder: async (id: string, orderUpdate: Partial<Order>) => {
+    try {
+      set({ isLoading: true, error: null });
+
+      const orderToUpdate: Partial<OrderInsertInput> = {
+        order_status: orderUpdate.order_status as OrderStatus,
+        notes: orderUpdate.notes,
+        subtotal: orderUpdate.subtotal,
+        tax: orderUpdate.tax,
+        total: orderUpdate.total,
+        updated_at: new Date().toISOString(),
+      };
+
+      if (orderUpdate.delivery_location) {
+        orderToUpdate.delivery_location_id = orderUpdate.delivery_location.id;
+      }
+
+      const { data, error } = await supabase
+        .from('orders')
+        .update(orderToUpdate)
+        .eq('id', id)
+        .select(`
+          *,
+          delivery_location (
+            *,
+            address:address (*)
+          ),
+          users (*),
+          order_items (*)
+        `)
+        .single() as { data: OrderWithDeliveryLocations | null, error: PostgrestError | null};
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data) {
+        return null;
+      }
+
+      const dbOrder = data as unknown as DbOrder;
+
+      const transformedUser: User = {
+        id: dbOrder.user_id,
+        email: dbOrder.users.email,
+        first_name: dbOrder.users.first_name,
+        last_name: dbOrder.users.last_name,
+        phone_number: dbOrder.users.phone_number,
+      };
+
+      const orderItems: OrderItem[] = dbOrder.order_items.map((item) => ({
+        id: item.id,
+        product_id: item.product_id,
+        order_id: item.order_id,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        subtotal: item.quantity * item.unit_price
+      }));
+
+      let transformedLocation: DeliveryLocation | null = null;
+      if (dbOrder.delivery_location) {
+        transformedLocation = {
+          id: dbOrder.delivery_location.id,
+          name: dbOrder.delivery_location.name,
+          start_open_time: dbOrder.delivery_location.start_open_time,
+          end_open_time: dbOrder.delivery_location.end_open_time,
+          provider_id: dbOrder.delivery_location.provider_id,
+          delivery_period_id: dbOrder.delivery_location.delivery_period_id,
+          address: {
+            id: dbOrder.delivery_location.address.id,
+            name: dbOrder.delivery_location.address.name,
+            address: dbOrder.delivery_location.address!.address,
+            address1: dbOrder.delivery_location.address.address1,
+            city: dbOrder.delivery_location.address.city,
+            state: dbOrder.delivery_location.address.state,
+            zip: dbOrder.delivery_location.address.zip,
+            latitude: dbOrder.delivery_location.address.latitude,
+            longitude: dbOrder.delivery_location.address.longitude,
+          }
+        };
+      }
+
+      const updatedOrder: Order = {
+        id: dbOrder.id,
+        order_status: dbOrder.order_status,
+        notes: dbOrder.notes,
+        subtotal: dbOrder.subtotal,
+        tax: dbOrder.tax,
+        total: dbOrder.total,
+        created_at: dbOrder.created_at,
+        delivery_location: transformedLocation,
+        user: transformedUser,
+        order_items: orderItems,
+      };
+
+      // Update the order in the store
+      const updatedOrders = get().orders.map(order => 
+        order.id === id ? updatedOrder : order
+      );
+
+      set({ orders: updatedOrders, isLoading: false });
+      return updatedOrder;
+    } catch (error) {
+      set({ error: error as Error, isLoading: false });
+      return null;
+    }
+  },
+  updateOrderStatus: async (id: string, status: string) => {
+    try {
+      set({ isLoading: true, error: null });
+
+      const { data, error } = await supabase
+        .from('orders')
+        .update({ order_status: status as OrderStatus, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select(`
+          *,
+          delivery_location (
+            *,
+            address:address (*)
+          ),
+          users (*),
+          order_items (*)
+        `)
+        .single() as { data: OrderWithDeliveryLocations | null, error: PostgrestError | null};
+
+      if (error) {
+        throw error;
+      }
+
+      if (!data) {
+        return null;
+      }
+
+      const dbOrder = data as unknown as DbOrder;
+
+      const transformedUser: User = {
+        id: dbOrder.user_id,
+        email: dbOrder.users.email,
+        first_name: dbOrder.users.first_name,
+        last_name: dbOrder.users.last_name,
+        phone_number: dbOrder.users.phone_number,
+      };
+
+      const orderItems: OrderItem[] = dbOrder.order_items.map((item) => ({
+        id: item.id,
+        product_id: item.product_id,
+        order_id: item.order_id,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        subtotal: item.quantity * item.unit_price
+      }));
+
+      let transformedLocation: DeliveryLocation | null = null;
+      if (dbOrder.delivery_location) {
+        transformedLocation = {
+          id: dbOrder.delivery_location.id,
+          name: dbOrder.delivery_location.name,
+          start_open_time: dbOrder.delivery_location.start_open_time,
+          end_open_time: dbOrder.delivery_location.end_open_time,
+          provider_id: dbOrder.delivery_location.provider_id,
+          delivery_period_id: dbOrder.delivery_location.delivery_period_id,
+          address: {
+            id: dbOrder.delivery_location.address.id,
+            name: dbOrder.delivery_location.address.name,
+            address: dbOrder.delivery_location.address!.address,
+            address1: dbOrder.delivery_location.address.address1,
+            city: dbOrder.delivery_location.address.city,
+            state: dbOrder.delivery_location.address.state,
+            zip: dbOrder.delivery_location.address.zip,
+            latitude: dbOrder.delivery_location.address.latitude,
+            longitude: dbOrder.delivery_location.address.longitude,
+          }
+        };
+      }
+
+      const updatedOrder: Order = {
+        id: dbOrder.id,
+        order_status: dbOrder.order_status,
+        notes: dbOrder.notes,
+        subtotal: dbOrder.subtotal,
+        tax: dbOrder.tax,
+        total: dbOrder.total,
+        created_at: dbOrder.created_at,
+        delivery_location: transformedLocation,
+        user: transformedUser,
+        order_items: orderItems,
+      };
+
+      // Update the order in the store
+      const updatedOrders = get().orders.map(order => 
+        order.id === id ? updatedOrder : order
+      );
+
+      set({ orders: updatedOrders, isLoading: false });
+      return updatedOrder;
+    } catch (error) {
+      set({ error: error as Error, isLoading: false });
+      return null;
+    }
+  },
+  deleteOrder: async (id: string) => {
+    try {
+      set({ isLoading: true, error: null });
+
+      // First delete all order items
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .delete()
+        .eq('order_id', id);
+
+      if (itemsError) {
+        throw itemsError;
+      }
+
+      // Then delete the order
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+
+      // Update the store
+      const updatedOrders = get().orders.filter(order => order.id !== id);
+      set({ orders: updatedOrders, isLoading: false });
+      return true;
+    } catch (error) {
+      set({ error: error as Error, isLoading: false });
+      return false;
     }
   }
 }))
