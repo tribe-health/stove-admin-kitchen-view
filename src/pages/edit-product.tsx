@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -15,13 +14,20 @@ import { productSchema, ProductFormValues } from "@/lib/validations/product-sche
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SimpleMarkdownEditor } from "@/components/editor/simple-markdown-editor";
+import SimpleMarkdownEditor from "@/components/editor/simple-markdown-editor";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 export default function EditProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { updateProduct, fetchProductById, fetchProductTypes } = useProductStore();
+  const {
+    updateProduct,
+    fetchProductById,
+    fetchProductTypes,
+    getEditingProduct,
+    saveEditingProduct
+  } = useProductStore();
   const [product, setProduct] = useState<Product | null>(null);
   const [productTypes, setProductTypes] = useState<Array<{ id: string; name: string }>>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -50,31 +56,39 @@ export default function EditProductPage() {
       if (!id) return;
 
       try {
-        // Fetch product details
-        const productData = await fetchProductById(id);
-        if (productData) {
-          setProduct(productData);
+        // First try to get the product from the editing map
+        let productData = getEditingProduct(id);
+        
+        // If not found in the editing map, fetch it from the database
+        if (!productData) {
+          productData = await fetchProductById(id);
           
-          // Set form values
-          form.reset({
-            name: productData.name,
-            unit: productData.unit || "",
-            shortDescription: productData.short_description || "",
-            longDescription: productData.long_description || "",
-            nutritionDetails: productData.nutrition_details || "",
-            instructions: productData.instructions || "",
-            unitPrice: productData.unit_price,
-            photoUrl: productData.photo_url || "",
-            productTypeId: productData.product_type_id || "",
-          });
-        } else {
-          toast({
-            variant: "destructive",
-            title: "Product not found",
-            description: "The requested product could not be found.",
-          });
-          navigate("/products");
+          // If still not found, show error and navigate back
+          if (!productData) {
+            toast({
+              variant: "destructive",
+              title: "Product not found",
+              description: "The requested product could not be found.",
+            });
+            navigate("/products");
+            return;
+          }
         }
+        
+        setProduct(productData);
+        
+        // Set form values
+        form.reset({
+          name: productData.name,
+          unit: productData.unit || "",
+          shortDescription: productData.short_description || "",
+          longDescription: productData.long_description || "",
+          nutritionDetails: productData.nutrition_details || "",
+          instructions: productData.instructions || "",
+          unitPrice: productData.unit_price,
+          photoUrl: productData.photo_url || "",
+          productTypeId: productData.product_type_id || "",
+        });
 
         // Fetch product types
         const types = await fetchProductTypes();
@@ -93,7 +107,7 @@ export default function EditProductPage() {
     };
 
     loadData();
-  }, [id, fetchProductById, fetchProductTypes, form, navigate, toast]);
+  }, [id, fetchProductById, fetchProductTypes, getEditingProduct, form, navigate, toast]);
 
   // Form submission handler
   const onSubmit = async (data: ProductFormValues) => {
@@ -102,8 +116,16 @@ export default function EditProductPage() {
     setIsLoading(true);
     
     try {
-      // Convert form data to the format expected by the API
-      const productData = {
+      // Get the current editing product or create one from the product
+      const editingProduct = getEditingProduct(id) || product;
+      
+      if (!editingProduct) {
+        throw new Error("Product not found");
+      }
+      
+      // Update the editing product with form data
+      const updatedProduct = {
+        ...editingProduct,
         name: data.name,
         unit: data.unit || null,
         short_description: data.shortDescription || null,
@@ -113,9 +135,11 @@ export default function EditProductPage() {
         unit_price: data.unitPrice,
         photo_url: data.photoUrl || null,
         product_type_id: data.productTypeId || null,
+        is_dirty: true
       };
 
-      const result = await updateProduct(id, productData);
+      // Save the editing product
+      const result = await saveEditingProduct(updatedProduct);
       
       if (result) {
         toast({
@@ -314,81 +338,89 @@ export default function EditProductPage() {
               </CardContent>
             </Card>
 
-            {/* Detailed Description */}
+            {/* Tabbed interface for markdown editors */}
             <Card className="md:col-span-2">
               <CardHeader>
-                <CardTitle>Detailed Description</CardTitle>
+                <CardTitle>Detailed Information</CardTitle>
                 <CardDescription>Update comprehensive details about the product.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="longDescription"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Full Description</FormLabel>
-                      <FormControl>
-                        <SimpleMarkdownEditor
-                          value={field.value || ""}
-                          onChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Detailed information about the product. Supports markdown formatting.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-            </Card>
-
-            {/* Nutrition Details */}
-            <Card className="md:col-span-2">
-              <CardHeader>
-                <CardTitle>Nutrition Information</CardTitle>
-                <CardDescription>Update nutrition details and cooking instructions.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="nutritionDetails"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nutrition Details</FormLabel>
-                      <FormControl>
-                        <SimpleMarkdownEditor
-                          value={field.value || ""}
-                          onChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Information about nutritional content, allergens, etc.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="instructions"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cooking Instructions</FormLabel>
-                      <FormControl>
-                        <SimpleMarkdownEditor
-                          value={field.value || ""}
-                          onChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Preparation or cooking instructions for the product.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              <CardContent>
+                <Tabs defaultValue="longDescription" className="w-full">
+                  <TabsList className="w-full grid grid-cols-3">
+                    <TabsTrigger value="longDescription">Long Description</TabsTrigger>
+                    <TabsTrigger value="instructions">Instructions</TabsTrigger>
+                    <TabsTrigger value="nutritionDetails">Nutrition Details</TabsTrigger>
+                  </TabsList>
+                  
+                  {/* Long Description Tab */}
+                  <TabsContent value="longDescription" className="pt-4">
+                    <FormField
+                      control={form.control}
+                      name="longDescription"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Full Description</FormLabel>
+                          <FormControl>
+                            <SimpleMarkdownEditor
+                              markdown={field.value || ""}
+                              onChange={field.onChange}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Detailed information about the product. Supports markdown formatting.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </TabsContent>
+                  
+                  {/* Instructions Tab */}
+                  <TabsContent value="instructions" className="pt-4">
+                    <FormField
+                      control={form.control}
+                      name="instructions"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Cooking Instructions</FormLabel>
+                          <FormControl>
+                            <SimpleMarkdownEditor
+                              markdown={field.value || ""}
+                              onChange={field.onChange}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Preparation or cooking instructions for the product.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </TabsContent>
+                  
+                  {/* Nutrition Details Tab */}
+                  <TabsContent value="nutritionDetails" className="pt-4">
+                    <FormField
+                      control={form.control}
+                      name="nutritionDetails"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nutrition Details</FormLabel>
+                          <FormControl>
+                            <SimpleMarkdownEditor
+                              markdown={field.value || ""}
+                              onChange={field.onChange}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Information about nutritional content, allergens, etc.
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           </div>

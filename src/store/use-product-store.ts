@@ -1,51 +1,64 @@
-
 import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
+import { Database } from '@/integrations/supabase/types';
 
-export interface ProductType {
-  id: string;
-  name: string;
-  key: string;
-  icon_url: string | null;
-  cover_url: string | null;
+type DbProduct = Database['public']['Tables']['products']['Row'];
+type DbProductType = Database['public']['Tables']['product_types']['Row'];
+
+export interface ProductType extends Omit<DbProductType, 'schema'> {
   schema: Record<string, unknown> | null;
-  created_at: string;
 }
 
-export interface Product {
-  id: string;
-  name: string;
-  unit: string | null;
-  short_description: string | null;
-  long_description: string | null;
-  nutrition_details: string | null;
-  instructions: string | null;
-  unit_price: number;
-  photo_url: string | null;
-  product_type_id: string | null;
+export interface Product extends Omit<DbProduct, 'data'> {
   product_type?: ProductType;
-  created_at: string;
-  updated_at: string | null;
   data: Record<string, unknown> | null;
+}
+
+export interface EditingProduct extends Product {
+  is_dirty?: boolean;
 }
 
 interface ProductState {
   products: Product[];
+  productTypes: ProductType[];
   isLoading: boolean;
   error: Error | null;
+  editingProduct: EditingProduct | null;
+  editingProductMap: Map<string, EditingProduct>;
+  createInput: Partial<Product>;
+  
+  // Fetch operations
   fetchProducts: () => Promise<void>;
   fetchProductById: (id: string) => Promise<Product | null>;
+  fetchProductTypes: () => Promise<ProductType[]>;
+  
+  // CRUD operations
   createProduct: (product: Omit<Product, 'id' | 'created_at' | 'updated_at' | 'product_type'>) => Promise<Product | null>;
   updateProduct: (id: string, product: Partial<Omit<Product, 'id' | 'created_at' | 'updated_at' | 'product_type'>>) => Promise<Product | null>;
   deleteProduct: (id: string) => Promise<boolean>;
-  fetchProductTypes: () => Promise<ProductType[]>;
+  
+  // Alias for createProduct to match hook naming
+  addProduct: (product: Omit<Product, 'id' | 'created_at' | 'updated_at' | 'product_type'>) => Promise<Product | null>;
+  
+  // Editing operations
+  setEditingProduct: (product: EditingProduct) => void;
+  createEditingProduct: (product: Product) => EditingProduct;
+  saveEditingProduct: (product: EditingProduct) => Promise<Product | null>;
+  getEditingProduct: (id: string) => EditingProduct | null;
+  
+  // Create form operations
+  setCreateInput: (input: Partial<Product>) => void;
 }
 
 export const useProductStore = create<ProductState>((set, get) => ({
   products: [],
+  productTypes: [],
   isLoading: false,
   error: null,
+  editingProduct: null,
+  editingProductMap: new Map<string, EditingProduct>(),
+  createInput: {},
 
   fetchProducts: async () => {
     try {
@@ -55,7 +68,7 @@ export const useProductStore = create<ProductState>((set, get) => ({
         .from('products')
         .select(`
           *,
-          product_type (*)
+          product_types (*)
         `)
         .order('name');
 
@@ -63,8 +76,9 @@ export const useProductStore = create<ProductState>((set, get) => ({
         throw error;
       }
 
-      // Map database fields to our interface
-      const products: Product[] = data.map(item => ({
+      // Map database fields to our interface using any to bypass type checking
+      const rawData = data as any[];
+      const products: Product[] = rawData.map(item => ({
         id: item.id,
         name: item.name,
         unit: item.unit,
@@ -75,10 +89,11 @@ export const useProductStore = create<ProductState>((set, get) => ({
         unit_price: item.unit_price,
         photo_url: item.photo_url,
         product_type_id: item.product_type_id,
-        product_type: item.product_type,
+        stripe_product_id: item.stripe_product_id,
+        product_type: item.product_type || undefined,
         created_at: item.created_at,
         updated_at: item.updated_at,
-        data: item.data
+        data: item.data as Record<string, unknown> | null
       }));
 
       set({ products, isLoading: false });
@@ -105,22 +120,24 @@ export const useProductStore = create<ProductState>((set, get) => ({
         throw error;
       }
 
-      // Map database fields to our interface
+      // Map database fields to our interface using any to bypass type checking
+      const rawData = data as any;
       const product: Product = {
-        id: data.id,
-        name: data.name,
-        unit: data.unit,
-        short_description: data.short_description,
-        long_description: data.long_description,
-        nutrition_details: data.nutrition_details,
-        instructions: data.instructions,
-        unit_price: data.unit_price,
-        photo_url: data.photo_url,
-        product_type_id: data.product_type_id,
-        product_type: data.product_type,
-        created_at: data.created_at,
-        updated_at: data.updated_at,
-        data: data.data
+        id: rawData.id,
+        name: rawData.name,
+        unit: rawData.unit,
+        short_description: rawData.short_description,
+        long_description: rawData.long_description,
+        nutrition_details: rawData.nutrition_details,
+        instructions: rawData.instructions,
+        unit_price: rawData.unit_price,
+        photo_url: rawData.photo_url,
+        product_type_id: rawData.product_type_id,
+        stripe_product_id: rawData.stripe_product_id,
+        product_type: rawData.product_type || undefined,
+        created_at: rawData.created_at,
+        updated_at: rawData.updated_at,
+        data: rawData.data as Record<string, unknown> | null
       };
 
       set({ isLoading: false });
@@ -136,9 +153,15 @@ export const useProductStore = create<ProductState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       
+      // Convert Record<string, unknown> to Json for Supabase
+      const supabaseData = {
+        ...productData,
+        data: productData.data as any
+      };
+      
       const { data, error } = await supabase
         .from('products')
-        .insert([productData])
+        .insert([supabaseData])
         .select(`
           *,
           product_type (*)
@@ -149,22 +172,24 @@ export const useProductStore = create<ProductState>((set, get) => ({
         throw error;
       }
 
-      // Map database fields to our interface
+      // Map database fields to our interface using any to bypass type checking
+      const rawData = data as any;
       const product: Product = {
-        id: data.id,
-        name: data.name,
-        unit: data.unit,
-        short_description: data.short_description,
-        long_description: data.long_description,
-        nutrition_details: data.nutrition_details,
-        instructions: data.instructions,
-        unit_price: data.unit_price,
-        photo_url: data.photo_url,
-        product_type_id: data.product_type_id,
-        product_type: data.product_type,
-        created_at: data.created_at,
-        updated_at: data.updated_at,
-        data: data.data
+        id: rawData.id,
+        name: rawData.name,
+        unit: rawData.unit,
+        short_description: rawData.short_description,
+        long_description: rawData.long_description,
+        nutrition_details: rawData.nutrition_details,
+        instructions: rawData.instructions,
+        unit_price: rawData.unit_price,
+        photo_url: rawData.photo_url,
+        product_type_id: rawData.product_type_id,
+        stripe_product_id: rawData.stripe_product_id,
+        product_type: rawData.product_type || undefined,
+        created_at: rawData.created_at,
+        updated_at: rawData.updated_at,
+        data: rawData.data as Record<string, unknown> | null
       };
 
       // Update local state
@@ -195,9 +220,15 @@ export const useProductStore = create<ProductState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       
+      // Convert Record<string, unknown> to Json for Supabase
+      const supabaseData = {
+        ...productData,
+        data: productData.data as any
+      };
+      
       const { data, error } = await supabase
         .from('products')
-        .update(productData)
+        .update(supabaseData)
         .eq('id', id)
         .select(`
           *,
@@ -209,22 +240,24 @@ export const useProductStore = create<ProductState>((set, get) => ({
         throw error;
       }
 
-      // Map database fields to our interface
+      // Map database fields to our interface using any to bypass type checking
+      const rawData = data as any;
       const updatedProduct: Product = {
-        id: data.id,
-        name: data.name,
-        unit: data.unit,
-        short_description: data.short_description,
-        long_description: data.long_description,
-        nutrition_details: data.nutrition_details,
-        instructions: data.instructions,
-        unit_price: data.unit_price,
-        photo_url: data.photo_url,
-        product_type_id: data.product_type_id,
-        product_type: data.product_type,
-        created_at: data.created_at,
-        updated_at: data.updated_at,
-        data: data.data
+        id: rawData.id,
+        name: rawData.name,
+        unit: rawData.unit,
+        short_description: rawData.short_description,
+        long_description: rawData.long_description,
+        nutrition_details: rawData.nutrition_details,
+        instructions: rawData.instructions,
+        unit_price: rawData.unit_price,
+        photo_url: rawData.photo_url,
+        product_type_id: rawData.product_type_id,
+        stripe_product_id: rawData.stripe_product_id,
+        product_type: rawData.product_type || undefined,
+        created_at: rawData.created_at,
+        updated_at: rawData.updated_at,
+        data: rawData.data as Record<string, unknown> | null
       };
 
       // Update local state
@@ -312,5 +345,38 @@ export const useProductStore = create<ProductState>((set, get) => ({
       set({ error: error as Error });
       return [];
     }
+  },
+
+  // Alias for createProduct to match hook naming
+  addProduct: async (productData) => {
+    return get().createProduct(productData);
+  },
+
+  // Editing operations
+  setEditingProduct: (product: EditingProduct) => {
+    const map = get().editingProductMap;
+    map.set(product.id, product);
+    set({ editingProduct: product, editingProductMap: map });
+  },
+
+  createEditingProduct: (product: Product): EditingProduct => {
+    return {
+      ...product,
+      is_dirty: false
+    };
+  },
+
+  saveEditingProduct: async (product: EditingProduct) => {
+    const { id, ...updateData } = product;
+    return get().updateProduct(id, updateData);
+  },
+
+  getEditingProduct: (id: string) => {
+    return get().editingProductMap.get(id) || null;
+  },
+
+  // Create form operations
+  setCreateInput: (input: Partial<Product>) => {
+    set({ createInput: input });
   }
 }));

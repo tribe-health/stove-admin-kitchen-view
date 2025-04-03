@@ -64,8 +64,8 @@ function App() {
         
         {/* Order routes */}
         <Route path="/orders" element={<AdminLayout><Orders /></AdminLayout>} />
-        <Route path="/orders/:id" element={<AdminLayout><ViewOrder /></AdminLayout>} />
         <Route path="/orders/edit/:id" element={<AdminLayout><EditOrder /></AdminLayout>} />
+        <Route path="/orders/:id" element={<AdminLayout><ViewOrder /></AdminLayout>} />
         
         {/* Product routes */}
         <Route path="/products" element={<AdminLayout><Products /></AdminLayout>} />
