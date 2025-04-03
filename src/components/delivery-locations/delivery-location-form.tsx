@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { DeliveryLocation } from '@/store/use-delivery-locations-store';
+import { DeliveryLocation, DeliveryPeriod } from '@/store/use-delivery-locations-store';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -17,6 +17,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { TimePickerInput } from '@/components/ui/time-picker-input';
 import { format } from 'date-fns';
+import { useProviders } from '@/hooks/use-providers';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 // Address schema
 const addressSchema = z.object({
@@ -35,6 +43,7 @@ const deliveryLocationSchema = z.object({
   startOpenTime: z.string().min(1, { message: "Start time is required." }),
   endOpenTime: z.string().min(1, { message: "End time is required." }),
   providerId: z.string().min(1, { message: "Provider is required." }),
+  deliveryPeriodId: z.string().optional(),
 });
 
 type DeliveryLocationFormValues = z.infer<typeof deliveryLocationSchema>;
@@ -44,6 +53,8 @@ interface DeliveryLocationFormProps {
   initialData?: Partial<DeliveryLocation>;
   isLoading?: boolean;
   deliveryPeriodId?: string;
+  deliveryPeriods?: DeliveryPeriod[];
+  onSelectDeliveryPeriod?: (periodId: string) => void;
 }
 
 export function DeliveryLocationForm({
@@ -51,6 +62,8 @@ export function DeliveryLocationForm({
   initialData,
   isLoading = false,
   deliveryPeriodId,
+  deliveryPeriods,
+  onSelectDeliveryPeriod,
 }: DeliveryLocationFormProps) {
   const [startTime, setStartTime] = useState<Date | undefined>(
     initialData?.start_open_time ? new Date(initialData.start_open_time) : undefined
@@ -58,6 +71,8 @@ export function DeliveryLocationForm({
   const [endTime, setEndTime] = useState<Date | undefined>(
     initialData?.end_open_time ? new Date(initialData.end_open_time) : undefined
   );
+
+  const { providers, isLoading: isLoadingProviders } = useProviders();
 
   // Initialize form with default values or initial data
   const form = useForm<DeliveryLocationFormValues>({
@@ -75,8 +90,16 @@ export function DeliveryLocationForm({
       startOpenTime: initialData?.start_open_time ? format(new Date(initialData.start_open_time), 'HH:mm') : '',
       endOpenTime: initialData?.end_open_time ? format(new Date(initialData.end_open_time), 'HH:mm') : '',
       providerId: initialData?.provider_id || '',
+      deliveryPeriodId: initialData?.delivery_period_id || deliveryPeriodId || '',
     },
   });
+
+  // Set first provider as default when providers are loaded and no provider is selected
+  useEffect(() => {
+    if (!isLoadingProviders && providers.length > 0 && !form.getValues('providerId')) {
+      form.setValue('providerId', providers[0].id);
+    }
+  }, [providers, isLoadingProviders, form]);
 
   // Update form values when time changes
   useEffect(() => {
@@ -93,11 +116,20 @@ export function DeliveryLocationForm({
 
   // Handle form submission
   const handleSubmit = (data: DeliveryLocationFormValues) => {
-    // Add delivery period ID if provided
+    if (!startTime || !endTime) {
+      return;
+    }
+
+    // Format the data with proper field names and format times as HH:mm
     const formData = {
-      ...data,
-      deliveryPeriodId,
+      name: data.name,
+      address: data.address,
+      start_open_time: format(startTime, 'HH:mm'),
+      end_open_time: format(endTime, 'HH:mm'),
+      provider_id: data.providerId,
+      delivery_period_id: data.deliveryPeriodId || deliveryPeriodId,
     };
+
     onSubmit(formData);
   };
 
@@ -165,13 +197,70 @@ export function DeliveryLocationForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Provider</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Select provider" {...field} />
-                    </FormControl>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select provider" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {isLoadingProviders ? (
+                          <div className="flex items-center justify-center p-2">
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          </div>
+                        ) : (
+                          providers.map((provider) => (
+                            <SelectItem key={provider.id} value={provider.id}>
+                              {provider.name}
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              {/* Delivery Period Selection (only shown when multiple periods exist) */}
+              {deliveryPeriods && deliveryPeriods.length > 1 && onSelectDeliveryPeriod && (
+                <FormField
+                  control={form.control}
+                  name="deliveryPeriodId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Delivery Period</FormLabel>
+                      <Select
+                        value={deliveryPeriodId || ''}
+                        onValueChange={(value) => {
+                          if (onSelectDeliveryPeriod) {
+                            onSelectDeliveryPeriod(value);
+                          }
+                          form.setValue('deliveryPeriodId', value);
+                          field.onChange(value);
+                        }}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select delivery period" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {deliveryPeriods.map((period) => (
+                            <SelectItem key={period.id} value={period.id}>
+                              {period.title || `Week of ${format(new Date(period.start_date), 'MMM d, yyyy')}`}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
           </CardContent>
         </Card>

@@ -11,19 +11,30 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 
 export default function DeliveryLocations() {
-  const { 
-    locations, 
-    isLoading, 
-    error, 
+  const {
+    locations,
+    isLoading,
+    error,
     formattedWeekRange,
+    currentDeliveryPeriods,
     currentDeliveryPeriod,
+    selectedDeliveryPeriod,
+    selectedLocation,
+    selectedLocationId,
     fetchLocations,
-    deleteLocation
+    deleteLocation,
+    selectLocation,
+    selectDeliveryPeriod,
+    getLocationsByPeriod
   } = useDeliveryLocations();
 
-  const [selectedLocation, setSelectedLocation] = useState<DeliveryLocation | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [activeView, setActiveView] = useState<'map' | 'list'>('map');
+  
+  // Get locations for the current delivery period
+  const currentPeriodLocations = currentDeliveryPeriod
+    ? getLocationsByPeriod(currentDeliveryPeriod.id)
+    : [];
 
   // Handle errors with toast
   useEffect(() => {
@@ -36,20 +47,27 @@ export default function DeliveryLocations() {
 
   // Handle adding a new location
   const handleAddLocation = () => {
-    setSelectedLocation(null);
+    selectLocation(null);
     setIsCreating(true);
   };
 
   // Handle selecting a location
   const handleSelectLocation = (location: DeliveryLocation) => {
-    setSelectedLocation(location);
+    selectLocation(location.id);
     setIsCreating(false);
+  };
+  
+  // Handle selecting a delivery period
+  const handleSelectDeliveryPeriod = (periodId: string) => {
+    selectDeliveryPeriod(periodId);
+    // Reset selected location when changing periods
+    selectLocation(null);
   };
 
   // Handle saving a location
   const handleSaveLocation = async (location: DeliveryLocation) => {
     await fetchLocations();
-    setSelectedLocation(location);
+    selectLocation(location.id);
     setIsCreating(false);
   };
 
@@ -57,7 +75,7 @@ export default function DeliveryLocations() {
   const handleDeleteLocation = async (id: string) => {
     await deleteLocation(id);
     await fetchLocations();
-    setSelectedLocation(null);
+    selectLocation(null);
   };
 
   return (
@@ -69,6 +87,26 @@ export default function DeliveryLocations() {
             <Calendar className="h-4 w-4 mr-1" />
             <p>Week of {formattedWeekRange}</p>
           </div>
+          {currentDeliveryPeriods && currentDeliveryPeriods.length > 1 && (
+            <div className="mt-2 flex items-center gap-2">
+              <label htmlFor="delivery-period-select" className="text-sm text-muted-foreground">
+                Delivery Period:
+              </label>
+              <select
+                id="delivery-period-select"
+                className="text-sm border rounded p-1"
+                value={selectedDeliveryPeriod?.id || currentDeliveryPeriod?.id || ''}
+                onChange={(e) => handleSelectDeliveryPeriod(e.target.value)}
+                aria-label="Select delivery period"
+              >
+                {currentDeliveryPeriods.map(period => (
+                  <option key={period.id} value={period.id}>
+                    {period.title || `Week of ${new Date(period.start_date).toLocaleDateString()}`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
         <Button onClick={handleAddLocation}>
           <Plus className="h-4 w-4 mr-2" />
@@ -85,7 +123,7 @@ export default function DeliveryLocations() {
                 <TabsTrigger value="list">List View</TabsTrigger>
               </TabsList>
               <div className="text-sm text-muted-foreground">
-                {locations.length} location{locations.length !== 1 ? 's' : ''}
+                {currentPeriodLocations.length} location{currentPeriodLocations.length !== 1 ? 's' : ''}
               </div>
             </div>
             
@@ -98,11 +136,11 @@ export default function DeliveryLocations() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <DeliveryLocationsMap 
-                    locations={locations} 
+                  <DeliveryLocationsMap
+                    locations={currentPeriodLocations}
                     isLoading={isLoading}
                     onSelectLocation={handleSelectLocation}
-                    selectedLocationId={selectedLocation?.id}
+                    selectedLocationId={selectedLocationId}
                   />
                 </CardContent>
               </Card>
@@ -117,11 +155,11 @@ export default function DeliveryLocations() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <DeliveryLocationsTable 
-                    locations={locations}
+                  <DeliveryLocationsTable
+                    locations={currentPeriodLocations}
                     isLoading={isLoading}
                     onSelectLocation={handleSelectLocation}
-                    selectedLocationId={selectedLocation?.id}
+                    selectedLocationId={selectedLocationId}
                   />
                 </CardContent>
               </Card>
@@ -134,14 +172,18 @@ export default function DeliveryLocations() {
             <DeliveryLocationDetail
               isNew={true}
               onSave={handleSaveLocation}
-              deliveryPeriodId={currentDeliveryPeriod?.id}
+              deliveryPeriodId={selectedDeliveryPeriod?.id || currentDeliveryPeriod?.id}
+              deliveryPeriods={currentDeliveryPeriods || []}
+              onSelectDeliveryPeriod={handleSelectDeliveryPeriod}
             />
           ) : selectedLocation ? (
             <DeliveryLocationDetail
               location={selectedLocation}
               onSave={handleSaveLocation}
               onDelete={handleDeleteLocation}
-              deliveryPeriodId={currentDeliveryPeriod?.id}
+              deliveryPeriodId={selectedLocation.delivery_period_id || currentDeliveryPeriod?.id}
+              deliveryPeriods={currentDeliveryPeriods || []}
+              onSelectDeliveryPeriod={handleSelectDeliveryPeriod}
             />
           ) : (
             <Card>

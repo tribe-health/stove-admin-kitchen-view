@@ -4,20 +4,24 @@ import { format } from 'date-fns';
 import { Site } from '@/types';
 
 export function useDeliveryLocations() {
-  const { 
-    locations, 
-    isLoading, 
-    error, 
-    currentWeekStart, 
+  const {
+    locations,
+    isLoading,
+    error,
+    currentWeekStart,
     currentWeekEnd,
-    currentDeliveryPeriod,
+    currentDeliveryPeriods,
+    selectedDeliveryPeriod,
+    selectedLocationId,
     fetchLocations,
     addLocation,
     updateLocation,
     deleteLocation,
     addSiteToLocation,
     removeSiteFromLocation,
-    getLocationSites
+    getLocationSites,
+    selectLocation,
+    selectDeliveryPeriod
   } = useDeliveryLocationsStore();
 
   const [selectedLocationSites, setSelectedLocationSites] = useState<{
@@ -53,9 +57,29 @@ export function useDeliveryLocations() {
     await loadLocationSites(locationId);
   };
 
+  // Get the current selected location
+  const selectedLocation = selectedLocationId
+    ? locations.find(loc => loc.id === selectedLocationId) || null
+    : null;
+
+  // Get the current delivery period
+  const currentDeliveryPeriod = selectedDeliveryPeriod ||
+    (currentDeliveryPeriods && currentDeliveryPeriods.length > 0
+      ? currentDeliveryPeriods[0]
+      : null);
+
+  // Filter locations by the selected delivery period
+  const getLocationsByPeriod = (periodId: string) => {
+    return locations.filter(loc => loc.delivery_period_id === periodId);
+  };
+
   return {
     locations,
+    currentDeliveryPeriods,
     currentDeliveryPeriod,
+    selectedDeliveryPeriod,
+    selectedLocation,
+    selectedLocationId,
     isLoading,
     error,
     currentWeekStart,
@@ -68,6 +92,9 @@ export function useDeliveryLocations() {
     addSiteToLocation: addSiteToLocationWithRefresh,
     removeSiteFromLocation: removeSiteFromLocationWithRefresh,
     getLocationSites: loadLocationSites,
-    selectedLocationSites
+    selectedLocationSites,
+    selectLocation,
+    selectDeliveryPeriod,
+    getLocationsByPeriod
   };
 }

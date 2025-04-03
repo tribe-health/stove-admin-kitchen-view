@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { DeliveryLocation } from '@/store/use-delivery-locations-store';
+import { DeliveryLocation, DeliveryPeriod } from '@/store/use-delivery-locations-store';
 import { DeliveryLocationForm } from './delivery-location-form';
 import { DeliveryLocationSites } from './delivery-location-sites';
 import { useDeliveryLocations } from '@/hooks/use-delivery-locations';
@@ -38,6 +38,8 @@ interface DeliveryLocationDetailProps {
   onDelete?: (id: string) => Promise<void>;
   isNew?: boolean;
   deliveryPeriodId?: string;
+  deliveryPeriods?: DeliveryPeriod[];
+  onSelectDeliveryPeriod?: (periodId: string) => void;
 }
 
 export function DeliveryLocationDetail({
@@ -46,6 +48,8 @@ export function DeliveryLocationDetail({
   onDelete,
   isNew = false,
   deliveryPeriodId,
+  deliveryPeriods,
+  onSelectDeliveryPeriod,
 }: DeliveryLocationDetailProps) {
   const { 
     updateLocation, 
@@ -61,6 +65,7 @@ export function DeliveryLocationDetail({
   const [activeTab, setActiveTab] = useState('details');
   const [locationSites, setLocationSites] = useState<Site[]>([]);
   const [sitesLoading, setSitesLoading] = useState(false);
+  const [isFormSubmitting, setIsFormSubmitting] = useState(false);
 
   // Load sites associated with this location
   useEffect(() => {
@@ -86,10 +91,16 @@ export function DeliveryLocationDetail({
 
   const handleFormSubmit = async (formData: any) => {
     try {
+      setIsFormSubmitting(true);
+
       if (isNew) {
         // Create new location
         const newLocation = await addLocation({
-          ...formData,
+          name: formData.name,
+          address: formData.address,
+          start_open_time: formData.start_open_time,
+          end_open_time: formData.end_open_time,
+          provider_id: formData.provider_id,
           delivery_period_id: deliveryPeriodId,
         });
         
@@ -100,7 +111,13 @@ export function DeliveryLocationDetail({
         }
       } else if (location) {
         // Update existing location
-        const updatedLocation = await updateLocation(location.id, formData);
+        const updatedLocation = await updateLocation(location.id, {
+          name: formData.name,
+          address: formData.address,
+          start_open_time: formData.start_open_time,
+          end_open_time: formData.end_open_time,
+          provider_id: formData.provider_id,
+        });
         
         if (updatedLocation) {
           toast.success('Delivery location updated successfully');
@@ -111,6 +128,8 @@ export function DeliveryLocationDetail({
     } catch (error) {
       console.error('Error saving location:', error);
       toast.error('Failed to save delivery location');
+    } finally {
+      setIsFormSubmitting(false);
     }
   };
 
@@ -165,8 +184,10 @@ export function DeliveryLocationDetail({
           <DeliveryLocationForm
             onSubmit={handleFormSubmit}
             initialData={location}
-            isLoading={isLoading}
+            isLoading={isFormSubmitting}
             deliveryPeriodId={deliveryPeriodId}
+            deliveryPeriods={deliveryPeriods}
+            onSelectDeliveryPeriod={onSelectDeliveryPeriod}
           />
         </CardContent>
         {!isNew && (

@@ -28,7 +28,9 @@ export interface DeliveryLocation {
 interface DeliveryLocationsState {
   locations: DeliveryLocation[];
   deliveryPeriods: DeliveryPeriod[]; // Added deliveryPeriods to match the interface
-  currentDeliveryPeriod: DeliveryPeriod | null;
+  currentDeliveryPeriods: DeliveryPeriod[] | null;
+  selectedDeliveryPeriod: DeliveryPeriod | null;
+  selectedLocationId: string | null; // Added to track the selected location
   isLoading: boolean;
   error: Error | null;
   currentWeekStart: Date;
@@ -41,6 +43,8 @@ interface DeliveryLocationsState {
   addSiteToLocation: (siteId: string, locationId: string) => Promise<void>;
   removeSiteFromLocation: (siteId: string, locationId: string) => Promise<void>;
   getLocationSites: (locationId: string) => Promise<Site[]>;
+  selectDeliveryPeriod: (periodId: string) => void;
+  selectLocation: (locationId: string | null) => void;
 }
 
 export type DeliveryLocationInsertInput = Database['public']['Tables']['delivery_location']['Insert'];
@@ -61,7 +65,9 @@ export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, ge
   return {
     locations: [],
     deliveryPeriods: [], // Initialize deliveryPeriods
-    currentDeliveryPeriod: null,
+    currentDeliveryPeriods: [],
+    selectedDeliveryPeriod: null,
+    selectedLocationId: null, // Initialize selectedLocationId
     isLoading: false,
     error: null,
     currentWeekStart: weekStart,
@@ -76,85 +82,105 @@ export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, ge
         const formattedStartDate = format(currentWeekStart, "yyyy-MM-dd'T'HH:mm:ssxxx");
         const formattedEndDate = format(currentWeekEnd, "yyyy-MM-dd'T'HH:mm:ssxxx");
 
-        const period = get().currentDeliveryPeriod;
-
-        if (!period) {
-          console.error('No current delivery period found.');
-
-        // Find delivery period that includes the current week
-        const { data: periods, error: periodError } = await supabase
+        // Fetch all current delivery periods
+        const { data: periodsData, error: periodError } = await supabase
           .from('delivery_period')
-          .select(`
-            *
-          `)
+          .select('*')
           .eq('is_current', true)
-          .limit(1)
-          .single();
+          .order('created_at', { ascending: false });
 
-          if (periodError) {
-            console.error('Error fetching delivery periods:', periodError.message);
-            throw periodError;
-          }
+        if (periodError) {
+          console.error('Error fetching delivery periods:', periodError.message);
+          throw periodError;
+        }
 
-          if (!periods) {
-            const { error } = await supabase. 
-            from('delivery_period'). 
-            insert({
+        // If no periods exist, create one
+        if (!periodsData || periodsData.length === 0) {
+          const { data: newPeriod, error: createError } = await supabase
+            .from('delivery_period')
+            .insert({
               start_date: formattedStartDate,
               end_date: formattedEndDate,
-              title: 'Week of ' + formattedStartDate + ' to ' + formattedEndDate,
-              created_at: new Date().toISOString(),
+              title: `Week of ${format(currentWeekStart, 'MMM d, yyyy')}`,
               is_current: true
             })
             .select()
             .single();
-            if (error) throw new Error(error.message);
-        
-            set({ currentDeliveryPeriod: period, locations: [], isLoading: false   });
-          } else {
-            const { data: locations, error: locationError } = await supabase
-             .from('delivery_location')
-             .select(`
-                *,
-                address(*)
-              `)
-             .eq('delivery_period_id', periods.id)
-             .order('created_at', { ascending: false }) as { data: DbDeliveryLocationWithAddress[] | null, 
-              error: PostgrestError | null};
-            
-            if (locationError) {
-              console.error('Error fetching delivery locations:', locationError.message);
-              throw locationError;
-            }
 
-            let transformedLocations = [];
-            if (locations) {
-              transformedLocations = locations.map(location => ({
-                ...location,
-                start_open_time: location.start_open_time ? new Date(location.start_open_time) : null,
-                end_open_time: location.end_open_time ? new Date(location.end_open_time) : null,
-              }));
-            }
-
-            const transformedPeriod = {
-              ...periods,
-              locations: transformedLocations as DeliveryLocation[],
-            } as DeliveryPeriod;
-
-            set({
-              currentDeliveryPeriod: transformedPeriod,
-              locations: transformedLocations as DeliveryLocation[],
-              isLoading: false,
-            })
+          if (createError) {
+            console.error('Error creating delivery period:', createError.message);
+            throw createError;
           }
+
+          // After creating a new period, set it as the only current period
+          set(state => ({
+            ...state,
+            currentDeliveryPeriods: [newPeriod],
+            selectedDeliveryPeriod: newPeriod,
+            deliveryPeriods: [...state.deliveryPeriods, newPeriod],
+            locations: [], // No locations yet for the new period
+            isLoading: false,
+          }));
+        } else {
+          // We have existing periods, fetch all locations for all current periods
+          const periodIds = periodsData.map(period => period.id);
           
+          const { data: locations, error: locationError } = await supabase
+            .from('delivery_location')
+            .select(`
+              *,
+              address(*)
+            `)
+            .in('delivery_period_id', periodIds)
+            .order('created_at', { ascending: false });
+
+          if (locationError) {
+            console.error('Error fetching delivery locations:', locationError.message);
+            throw locationError;
+          }
+
+          const transformedLocations = (locations || []).map(location => ({
+            ...location,
+            start_open_time: location.start_open_time || null,
+            end_open_time: location.end_open_time || null,
+          }));
+
+          // Determine which period to select (keep existing selection if valid)
+          const currentSelectedPeriod = get().selectedDeliveryPeriod;
+          const isCurrentSelectionValid = currentSelectedPeriod &&
+            periodsData.some(p => p.id === currentSelectedPeriod.id);
+          
+          const selectedPeriod = isCurrentSelectionValid
+            ? currentSelectedPeriod
+            : periodsData[0];
+
+          // Determine which location to select (keep existing selection if valid)
+          const currentSelectedLocationId = get().selectedLocationId;
+          const isCurrentLocationValid = currentSelectedLocationId &&
+            transformedLocations.some(loc => loc.id === currentSelectedLocationId);
+          
+          const selectedLocationId = isCurrentLocationValid
+            ? currentSelectedLocationId
+            : (transformedLocations.length > 0 ? transformedLocations[0].id : null);
+
+          set(state => ({
+            ...state,
+            currentDeliveryPeriods: periodsData,
+            selectedDeliveryPeriod: selectedPeriod,
+            deliveryPeriods: [...state.deliveryPeriods.filter(p =>
+              !periodsData.some(newP => newP.id === p.id)), ...periodsData],
+            locations: transformedLocations,
+            selectedLocationId: selectedLocationId,
+            isLoading: false,
+          }));
         }
       } catch (error) {
         console.error('Error fetching delivery locations:', error);
-        set({ 
+        set(state => ({ 
+          ...state,
           error: error as Error, 
           isLoading: false 
-        });
+        }));
       }
     },
     
@@ -186,7 +212,7 @@ export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, ge
           start_open_time: location.start_open_time?.toString(),
           end_open_time: location.end_open_time?.toString(),
           provider_id: location.provider_id,
-          delivery_period_id: location.delivery_period_id || get().currentDeliveryPeriod?.id,
+          delivery_period_id: location.delivery_period_id || get().selectedDeliveryPeriod?.id,
         }
         
         // Insert a single location, not an array
@@ -456,6 +482,36 @@ export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, ge
         console.error('Error fetching location sites:', error);
         return [];
       }
+    },
+
+    selectDeliveryPeriod: (periodId: string) => {
+      // First try to find the period in currentDeliveryPeriods, then fall back to all deliveryPeriods
+      const period =
+        (get().currentDeliveryPeriods || []).find(period => period.id === periodId) ||
+        get().deliveryPeriods.find(period => period.id === periodId) ||
+        null;
+      
+      set({ selectedDeliveryPeriod: period });
+      
+      // Reset selected location when changing periods
+      if (period) {
+        // Find a location for this period
+        const locationsForPeriod = get().locations.filter(loc =>
+          loc.delivery_period_id === period.id
+        );
+        
+        // If there are locations for this period, select the first one
+        if (locationsForPeriod.length > 0) {
+          set({ selectedLocationId: locationsForPeriod[0].id });
+        } else {
+          set({ selectedLocationId: null });
+        }
+      }
+    },
+    
+    // Add a function to select a location
+    selectLocation: (locationId: string | null) => {
+      set({ selectedLocationId: locationId });
     }
   };
 });
