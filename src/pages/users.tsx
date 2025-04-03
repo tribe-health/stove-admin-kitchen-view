@@ -1,5 +1,5 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -10,28 +10,87 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Plus } from "lucide-react";
-
-// Mock data for users
-const mockUsers = [
-  { id: 1, name: "John Smith", email: "john@example.com", role: "Admin", status: "Active" },
-  { id: 2, name: "Sarah Johnson", email: "sarah@example.com", role: "Staff", status: "Active" },
-  { id: 3, name: "Michael Brown", email: "mike@example.com", role: "Staff", status: "Inactive" },
-  { id: 4, name: "Emma Davis", email: "emma@example.com", role: "Admin", status: "Active" },
-  { id: 5, name: "Robert Wilson", email: "robert@example.com", role: "Staff", status: "Active" },
-];
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
+import { Search, Plus, MoreHorizontal, Edit, Trash2, Eye } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { useUsers } from "@/hooks/use-users";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { User } from "@/store/use-user-store";
 
 export default function Users() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [filteredUsers, setFilteredUsers] = useState(mockUsers);
+  const { users, isLoading, error, fetchUsers } = useUsers();
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
-    const results = mockUsers.filter(user => 
-      user.name.toLowerCase().includes(term.toLowerCase()) ||
-      user.email.toLowerCase().includes(term.toLowerCase())
-    );
-    setFilteredUsers(results);
+    applyFilters(term);
+  };
+
+  useEffect(() => {
+    // Only apply filters if users array exists and has items
+    if (users && users.length >= 0) {
+      applyFilters(searchTerm);
+    }
+  }, [users, searchTerm]);
+
+  const applyFilters = (term: string) => {
+    // Check if users exist before trying to filter them
+    if (!users || users.length === 0) {
+      setFilteredUsers([]);
+      return;
+    }
+    
+    let result = [...users];
+
+    if (term) {
+      result = result.filter(user =>
+        user.first_name?.toLowerCase().includes(term.toLowerCase()) ||
+        user.last_name?.toLowerCase().includes(term.toLowerCase()) ||
+        user.email?.toLowerCase().includes(term.toLowerCase()) ||
+        user.handle?.toLowerCase().includes(term.toLowerCase())
+      );
+    }
+
+    setFilteredUsers(result);
+  };
+
+  const handleViewUser = (id: string) => {
+    // Navigate to user details page
+    navigate(`/users/${id}`);
+  };
+
+  const handleEditUser = (id: string) => {
+    // Navigate to edit user page when implemented
+    // navigate(`/users/edit/${id}`);
+    console.log("Edit user:", id);
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    setIsDeleting(true);
+    // Implement delete functionality when available
+    console.log("Delete user:", id);
+    setUserToDelete(null);
+    setIsDeleting(false);
+  };
+
+  const getUserStatus = (user: User) => {
+    // This is a placeholder - implement actual status logic based on your requirements
+    return "Active";
+  };
+
+  const getUserRole = (user: User) => {
+    // This is a placeholder - implement actual role logic based on your requirements
+    return "User";
   };
 
   return (
@@ -50,8 +109,8 @@ export default function Users() {
       <div className="flex items-center">
         <div className="flex items-center gap-2 flex-1">
           <Search className="h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search users..." 
+          <Input
+            placeholder="Search users..."
             value={searchTerm}
             onChange={(e) => handleSearch(e.target.value)}
             className="flex-1"
@@ -59,40 +118,99 @@ export default function Users() {
         </div>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="w-[100px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredUsers.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell className="font-medium">{user.name}</TableCell>
-                <TableCell>{user.email}</TableCell>
-                <TableCell>{user.role}</TableCell>
-                <TableCell>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    user.status === "Active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"
-                  }`}>
-                    {user.status}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <Button variant="outline" size="sm">
-                    Edit
-                  </Button>
-                </TableCell>
+      {isLoading ? (
+        <div className="flex justify-center p-8">
+          <p>Loading users...</p>
+        </div>
+      ) : filteredUsers.length === 0 ? (
+        <div className="rounded-md border p-8 text-center">
+          <h3 className="text-lg font-medium mb-2">No Users Found</h3>
+          <p className="text-muted-foreground">
+            {searchTerm
+              ? "No users match your current search. Try adjusting your search criteria."
+              : "There are no users in the system yet."}
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Handle</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-[80px]"></TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+            </TableHeader>
+            <TableBody>
+              {filteredUsers.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell className="font-medium">{`${user.first_name} ${user.last_name}`}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>{user.handle}</TableCell>
+                  <TableCell>{getUserRole(user)}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={getUserStatus(user) === "Active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}>
+                      {getUserStatus(user)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Actions</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleViewUser(user.id)}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleEditUser(user.id)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit User
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem onSelect={(e) => {
+                              e.preventDefault();
+                              setUserToDelete(user.id);
+                            }}>
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete User
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete the user and all associated data.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => userToDelete && handleDeleteUser(userToDelete)}
+                                disabled={isDeleting}
+                              >
+                                {isDeleting ? "Deleting..." : "Delete"}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
     </div>
   );
 }

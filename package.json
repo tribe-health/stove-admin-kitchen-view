@@ -21,6 +21,7 @@
     "dev:all": "concurrently \"npm run dev\" \"npm run server:dev\""
   },
   "dependencies": {
+    "@atproto/api": "^0.14.19",
     "@hookform/resolvers": "^5.0.1",
     "@mdxeditor/editor": "^3.29.1",
     "@radix-ui/react-accordion": "^1.2.3",

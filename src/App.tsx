@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Toaster } from "@/components/ui/toaster";
 import { Auth } from "./pages/auth";
 import Users from "./pages/users";
+import UserDetailPage from "./pages/user-detail";
 import Sites from "./pages/sites";
 import { AdminLayout } from "./components/admin-layout";
 import DeliveryLocations from "./pages/delivery-locations";
@@ -73,6 +74,7 @@ function App() {
         <Route path="/products/edit/:id" element={<AdminLayout><EditProductPage /></AdminLayout>} />
         <Route path="/sites" element={<AdminLayout><Sites /></AdminLayout>} />
         <Route path="/users" element={<AdminLayout><Users /></AdminLayout>} />
+        <Route path="/users/:userId" element={<AdminLayout><UserDetailPage /></AdminLayout>} />
         <Route path="/delivery-locations" element={<AdminLayout><DeliveryLocations /></AdminLayout>} />
         <Route path="/settings" element={<AdminLayout><Settings /></AdminLayout>} />
         

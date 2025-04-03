@@ -15,7 +15,8 @@
       "@/lib/*": ["./src/lib/*"],
       "@/pages/*": ["./src/pages/*"],
       "@/store/*": ["./src/store/*"],
-      "@/utils/*": ["./src/utils/*"]
+      "@/utils/*": ["./src/utils/*"],
+      "@/integrations/*": ["./src/integrations/*"]
     },
     "noImplicitAny": false,
     "noUnusedParameters": false,

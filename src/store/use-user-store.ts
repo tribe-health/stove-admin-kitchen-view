@@ -21,15 +21,6 @@ export interface User {
   updated_at?: string | null;
 }
 
-// For compatibility with existing code that might not have all required fields
-export interface BasicUser {
-  id: string;
-  email: string;
-  first_name: string;
-  last_name: string;
-  phone_number?: string | null;
-}
-
 export interface EditingUser {
   input: UserInput;
   user: User;
