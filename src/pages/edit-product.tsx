@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
@@ -15,7 +14,7 @@ import { productSchema, ProductFormValues } from "@/lib/validations/product-sche
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SimpleMarkdownEditor } from "@/components/editor/simple-markdown-editor";
+import SimpleMarkdownEditor from "@/components/editor/simple-markdown-editor";
 
 export default function EditProductPage() {
   const { id } = useParams();
@@ -28,7 +27,6 @@ export default function EditProductPage() {
   const [isLoadingProduct, setIsLoadingProduct] = useState(true);
   const [isLoadingTypes, setIsLoadingTypes] = useState(true);
 
-  // Initialize the form with validation schema
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
     defaultValues: {
@@ -44,18 +42,15 @@ export default function EditProductPage() {
     },
   });
 
-  // Load product and product types on component mount
   useEffect(() => {
     const loadData = async () => {
       if (!id) return;
 
       try {
-        // Fetch product details
         const productData = await fetchProductById(id);
         if (productData) {
           setProduct(productData);
           
-          // Set form values
           form.reset({
             name: productData.name,
             unit: productData.unit || "",
@@ -76,7 +71,6 @@ export default function EditProductPage() {
           navigate("/products");
         }
 
-        // Fetch product types
         const types = await fetchProductTypes();
         setProductTypes(types);
       } catch (error) {
@@ -95,14 +89,12 @@ export default function EditProductPage() {
     loadData();
   }, [id, fetchProductById, fetchProductTypes, form, navigate, toast]);
 
-  // Form submission handler
   const onSubmit = async (data: ProductFormValues) => {
     if (!id) return;
     
     setIsLoading(true);
     
     try {
-      // Convert form data to the format expected by the API
       const productData = {
         name: data.name,
         unit: data.unit || null,
@@ -162,7 +154,6 @@ export default function EditProductPage() {
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {/* Basic Information */}
             <Card>
               <CardHeader>
                 <CardTitle>Basic Information</CardTitle>
@@ -284,7 +275,6 @@ export default function EditProductPage() {
               </CardContent>
             </Card>
 
-            {/* Images and Media */}
             <Card>
               <CardHeader>
                 <CardTitle>Images & Media</CardTitle>
@@ -314,7 +304,6 @@ export default function EditProductPage() {
               </CardContent>
             </Card>
 
-            {/* Detailed Description */}
             <Card className="md:col-span-2">
               <CardHeader>
                 <CardTitle>Detailed Description</CardTitle>
@@ -343,7 +332,6 @@ export default function EditProductPage() {
               </CardContent>
             </Card>
 
-            {/* Nutrition Details */}
             <Card className="md:col-span-2">
               <CardHeader>
                 <CardTitle>Nutrition Information</CardTitle>
