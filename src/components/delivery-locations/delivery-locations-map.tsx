@@ -9,7 +9,8 @@ import Map, {
   Source, 
   Layer
 } from 'react-map-gl';
-import type { MapLayerMouseEvent } from 'mapbox-gl';
+import type { MapLayerMouseEvent, MapRef } from 'react-map-gl';
+import type { Feature, Point } from 'geojson';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -33,8 +34,7 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
   const [useClustering, setUseClustering] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   // Use a more specific type for the map reference
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mapRef = useRef<any>(null);
+  const mapRef = useRef<MapRef | null>(null);
 
   // Convert locations to GeoJSON for clustering
   const geojson = useMemo(() => {
@@ -154,20 +154,18 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
   };
 
   // Handle cluster click to zoom in
-  // Using 'any' type here due to complex MapBox API types that don't fully match the runtime behavior
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleClusterClick = (event: MapLayerMouseEvent) => {
     // Check if we have features and if the first one has a cluster_id
     if (!event.features || !event.features.length || !event.features[0].properties.cluster_id) {
       return;
     }
     
-    const feature = event.features[0];
+    const feature = event.features[0] as Feature<Point>;
     const clusterId = feature.properties.cluster_id;
     
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const mapboxSource: any = mapRef.current.getMap().getSource('delivery-locations');
+      const mapboxSource: any = mapRef.current?.getMap().getSource('delivery-locations');
       
       mapboxSource.getClusterExpansionZoom(clusterId, (err: Error | null, zoom: number) => {
         if (err) return;
@@ -245,7 +243,7 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
             mapboxAccessToken={mapBoxToken}
             {...viewState}
             onMove={evt => setViewState(evt.viewState)}
-            onClick={useClustering ? handleClusterClick : undefined}
+            onClick={useClustering ? (evt => handleClusterClick(evt as MapLayerMouseEvent)) : undefined}
             style={{width: '100%', height: '100%'}}
             mapStyle="mapbox://styles/mapbox/streets-v9"
             interactiveLayerIds={useClustering ? ['clusters'] : undefined}
@@ -329,12 +327,14 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
                     key={location.id} 
                     longitude={location.address.longitude} 
                     latitude={location.address.latitude}
-                    onClick={e => {
-                      e.originalEvent.stopPropagation();
-                      handleMarkerClick(location);
-                    }}
                   >
-                    <div className="relative cursor-pointer">
+                    <div 
+                      className="relative cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMarkerClick(location);
+                      }}
+                    >
                       <MapPin 
                         className="h-5 w-5 text-primary hover:scale-110 transition-transform" 
                         fill="currentColor"
