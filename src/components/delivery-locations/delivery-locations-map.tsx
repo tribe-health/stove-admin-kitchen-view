@@ -22,6 +22,8 @@ const mapContainerStyle = {
 interface DeliveryLocationsMapProps {
   locations: DeliveryLocation[];
   isLoading: boolean;
+  onSelectLocation?: (location: DeliveryLocation) => void;
+  selectedLocationId?: string;
 }
 
 // Component to handle map bounds and centering
@@ -48,7 +50,12 @@ function MapReference({ mapRef }: { mapRef: React.MutableRefObject<L.Map | null>
   return null;
 }
 
-export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocationsMapProps) {
+export function DeliveryLocationsMap({ 
+  locations, 
+  isLoading, 
+  onSelectLocation,
+  selectedLocationId 
+}: DeliveryLocationsMapProps) {
   const [selectedLocation, setSelectedLocation] = useState<DeliveryLocation | null>(null);
   const [useClustering, setUseClustering] = useState(false);
   const [mapReady, setMapReady] = useState(false);
@@ -84,20 +91,25 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
     return () => clearTimeout(timer);
   }, []);
 
-  // Debug location coordinates
-  useEffect(() => {
-    if (locations.length > 0 && !isLoading) {
-      console.log('Map would show these locations:', locations);
-      
-      locations.forEach(location => {
-        console.log(`Location ${location.name} coordinates:`, {
-          latitude: location.address.latitude,
-          longitude: location.address.longitude,
-          hasValidCoords: !!(location.address.latitude && location.address.longitude)
-        });
-      });
+  // Handle location selection
+  const handleLocationSelect = (location: DeliveryLocation) => {
+    setSelectedLocation(location);
+    if (onSelectLocation) {
+      onSelectLocation(location);
     }
-  }, [locations, isLoading]);
+  };
+
+  // Update selected location when selectedLocationId changes
+  useEffect(() => {
+    if (selectedLocationId) {
+      const location = locations.find(loc => loc.id === selectedLocationId);
+      if (location) {
+        setSelectedLocation(location);
+      }
+    } else {
+      setSelectedLocation(null);
+    }
+  }, [selectedLocationId, locations]);
 
   // Only show loading state if we're loading data and the map isn't ready yet
   if (isLoading && !mapReady) {
@@ -115,15 +127,17 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
 
   // Create custom marker icon
   const createCustomIcon = (location: DeliveryLocation) => {
+    const isSelected = selectedLocationId === location.id;
+    
     return L.divIcon({
       className: 'custom-marker-icon',
       html: `
         <div class="relative cursor-pointer">
-          <div style="color: var(--primary);">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 text-primary hover:scale-110 transition-transform">
-              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
-              <circle cx="12" cy="10" r="3"></circle>
-            </svg>
+          <div style="color: ${isSelected ? 'var(--primary)' : 'var(--muted-foreground)'};">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 ${isSelected ? 'text-primary' : ''} hover:scale-110 transition-transform">
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+              </svg>
           </div>
           <div class="absolute -top-1 -right-1 h-3 w-3 bg-green-500 rounded-full border-2 border-white"></div>
         </div>
@@ -201,7 +215,7 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
                     position={[location.address.latitude, location.address.longitude]}
                     icon={createCustomIcon(location)}
                     eventHandlers={{
-                      click: () => setSelectedLocation(location)
+                      click: () => handleLocationSelect(location)
                     }}
                   >
                     <Popup>
@@ -218,9 +232,13 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
                         )}
                         
                         <div className="mt-3 flex justify-end">
-                          <button className="bg-transparent hover:bg-accent text-xs border border-input rounded px-3 py-1">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleLocationSelect(location)}
+                          >
                             View Details
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     </Popup>
@@ -239,7 +257,7 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
                     position={[location.address.latitude, location.address.longitude]}
                     icon={createCustomIcon(location)}
                     eventHandlers={{
-                      click: () => setSelectedLocation(location)
+                      click: () => handleLocationSelect(location)
                     }}
                   >
                     <Popup>
@@ -256,9 +274,13 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
                         )}
                         
                         <div className="mt-3 flex justify-end">
-                          <button className="bg-transparent hover:bg-accent text-xs border border-input rounded px-3 py-1">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleLocationSelect(location)}
+                          >
                             View Details
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     </Popup>

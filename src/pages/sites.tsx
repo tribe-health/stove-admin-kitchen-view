@@ -4,20 +4,85 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { SiteDetails } from "@/components/sites/site-details";
+import { SiteForm } from "@/components/sites/site-form";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2 } from "lucide-react";
+import { Json } from "@/integrations/supabase/types";
+import { 
+  Loader2, 
+  Plus, 
+  Search, 
+  Building, 
+  Filter, 
+  MapPin, 
+  X,
+  RefreshCw
+} from "lucide-react";
+
+interface Site {
+  id: string;
+  name: string;
+  data: Json;
+  organization_id: string;
+  site_type_id: string;
+  organization?: {
+    name: string;
+  };
+  site_type?: {
+    name: string;
+    key: string;
+    managing_table?: string;
+  };
+  created_at: string;
+}
 
 export default function Sites() {
-  const [sites, setSites] = useState<any[]>([]);
+  const [sites, setSites] = useState<Site[]>([]);
+  const [filteredSites, setFilteredSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedSite, setSelectedSite] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState("all");
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingSiteId, setEditingSiteId] = useState<string | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchSites();
   }, []);
+
+  useEffect(() => {
+    // Filter sites based on search term and active tab
+    let filtered = sites;
+    
+    // Apply search filter
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(site => {
+        // Extract code from data if it exists and is an object
+        let code = "";
+        if (site.data && typeof site.data === 'object') {
+          const dataObj = site.data as Record<string, any>;
+          code = dataObj.code || "";
+        }
+        
+        return site.name.toLowerCase().includes(term) || 
+          code.toLowerCase().includes(term) ||
+          site.organization?.name?.toLowerCase().includes(term) ||
+          site.site_type?.name?.toLowerCase().includes(term);
+      });
+    }
+    
+    // Apply tab filter
+    if (activeTab !== "all") {
+      filtered = filtered.filter(site => site.site_type?.key === activeTab);
+    }
+    
+    setFilteredSites(filtered);
+  }, [sites, searchTerm, activeTab]);
 
   async function fetchSites() {
     try {
@@ -27,7 +92,7 @@ export default function Sites() {
         .select(`
           *,
           organization:organization_id (name),
-          site_type:site_type_id (name, key)
+          site_type:site_type_id (name, key, managing_table)
         `);
 
       if (error) {
@@ -35,6 +100,7 @@ export default function Sites() {
       }
 
       setSites(data || []);
+      setFilteredSites(data || []);
     } catch (error) {
       console.error('Error fetching sites:', error);
       toast({
@@ -62,200 +128,149 @@ export default function Sites() {
     }
   }
 
+  // Helper function to safely get code from data
+  function getSiteCode(data: Json): string {
+    if (data && typeof data === 'object') {
+      const dataObj = data as Record<string, any>;
+      return dataObj.code || "N/A";
+    }
+    return "N/A";
+  }
+
+  function handleCreateSite() {
+    setEditingSiteId(null);
+    setIsFormOpen(true);
+  }
+
+  function handleEditSite(siteId: string) {
+    setEditingSiteId(siteId);
+    setIsFormOpen(true);
+  }
+
+  function handleFormSuccess(site: Site) {
+    setIsFormOpen(false);
+    fetchSites();
+    toast({
+      title: "Success",
+      description: `Site ${editingSiteId ? "updated" : "created"} successfully`,
+    });
+  }
+
+  function handleFormCancel() {
+    setIsFormOpen(false);
+  }
+
+  function handleViewSite(siteId: string) {
+    setSelectedSite(siteId);
+  }
+
+  function handleCloseSiteDetails() {
+    setSelectedSite(null);
+  }
+
+  function handleRefresh() {
+    fetchSites();
+  }
+
   return (
-    <div className="flex flex-col space-y-6 p-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Sites</h1>
-        <Button>Add New Site</Button>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Sites</h1>
+          <p className="text-muted-foreground mt-2">
+            Manage all sites and their associated details
+          </p>
+        </div>
+        <Button onClick={handleCreateSite}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add New Site
+        </Button>
       </div>
 
-      <Tabs defaultValue="all" className="w-full">
+      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+        <div className="relative w-full md:w-72">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search sites..."
+            className="pl-8"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleRefresh}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList>
           <TabsTrigger value="all">All Sites</TabsTrigger>
-          <TabsTrigger value="stations">Stations</TabsTrigger>
-          <TabsTrigger value="hospitals">Hospitals</TabsTrigger>
+          <TabsTrigger value="station">Fire Stations</TabsTrigger>
+          <TabsTrigger value="hospital">Hospitals</TabsTrigger>
           <TabsTrigger value="other">Other</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="all" className="mt-4">
+        <TabsContent value={activeTab} className="mt-4">
           <Card>
-            <CardHeader>
-              <CardTitle>All Sites</CardTitle>
-              <CardDescription>
-                Manage all sites across organizations
-              </CardDescription>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>
+                    {activeTab === "all" ? "All Sites" : 
+                     activeTab === "station" ? "Fire Stations" :
+                     activeTab === "hospital" ? "Hospitals" : "Other Sites"}
+                  </CardTitle>
+                  <CardDescription>
+                    {filteredSites.length} {filteredSites.length === 1 ? "site" : "sites"} found
+                  </CardDescription>
+                </div>
+              </div>
             </CardHeader>
             <CardContent>
               {loading ? (
                 <div className="flex justify-center py-8">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
+              ) : filteredSites.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <Building className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                  <h3 className="text-lg font-medium">No sites found</h3>
+                  <p className="text-muted-foreground mt-1 mb-4 max-w-md">
+                    {searchTerm 
+                      ? "Try adjusting your search or filters to find what you're looking for." 
+                      : "Get started by adding your first site."}
+                  </p>
+                  {searchTerm && (
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setSearchTerm("")}
+                      className="mt-2"
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Clear Search
+                    </Button>
+                  )}
+                </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Code</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Organization</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sites.map((site) => (
-                      <TableRow key={site.id}>
-                        <TableCell className="font-medium">{site.name}</TableCell>
-                        <TableCell>{site.data?.code || "N/A"}</TableCell>
-                        <TableCell>
-                          <Badge className={getSiteTypeBadgeColor(site.site_type?.name || "")}>
-                            {site.site_type?.name}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{site.organization?.name || "Unknown"}</TableCell>
-                        <TableCell className="text-right">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => setSelectedSite(site.id)}
-                          >
-                            View
-                          </Button>
-                        </TableCell>
+                <div className="border rounded-md overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Code</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Organization</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="stations" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Stations</CardTitle>
-              <CardDescription>View and manage station sites</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Code</TableHead>
-                      <TableHead>Organization</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sites
-                      .filter(site => site.site_type?.key === 'station')
-                      .map((site) => (
+                    </TableHeader>
+                    <TableBody>
+                      {filteredSites.map((site) => (
                         <TableRow key={site.id}>
                           <TableCell className="font-medium">{site.name}</TableCell>
-                          <TableCell>{site.data?.code || "N/A"}</TableCell>
-                          <TableCell>{site.organization?.name || "Unknown"}</TableCell>
-                          <TableCell className="text-right">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => setSelectedSite(site.id)}
-                            >
-                              View
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="hospitals" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Hospitals</CardTitle>
-              <CardDescription>View and manage hospital sites</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Code</TableHead>
-                      <TableHead>Organization</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sites
-                      .filter(site => site.site_type?.key === 'hospital')
-                      .map((site) => (
-                        <TableRow key={site.id}>
-                          <TableCell className="font-medium">{site.name}</TableCell>
-                          <TableCell>{site.data?.code || "N/A"}</TableCell>
-                          <TableCell>{site.organization?.name || "Unknown"}</TableCell>
-                          <TableCell className="text-right">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => setSelectedSite(site.id)}
-                            >
-                              View
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="other" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Other Sites</CardTitle>
-              <CardDescription>View and manage other site types</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Code</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Organization</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sites
-                      .filter(site => 
-                        site.site_type?.key !== 'hospital' && 
-                        site.site_type?.key !== 'station'
-                      )
-                      .map((site) => (
-                        <TableRow key={site.id}>
-                          <TableCell className="font-medium">{site.name}</TableCell>
-                          <TableCell>{site.data?.code || "N/A"}</TableCell>
+                          <TableCell>{getSiteCode(site.data)}</TableCell>
                           <TableCell>
                             <Badge className={getSiteTypeBadgeColor(site.site_type?.name || "")}>
                               {site.site_type?.name}
@@ -263,30 +278,52 @@ export default function Sites() {
                           </TableCell>
                           <TableCell>{site.organization?.name || "Unknown"}</TableCell>
                           <TableCell className="text-right">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => setSelectedSite(site.id)}
-                            >
-                              View
-                            </Button>
+                            <div className="flex justify-end gap-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleViewSite(site.id)}
+                              >
+                                View
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleEditSite(site.id)}
+                              >
+                                Edit
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
-                  </TableBody>
-                </Table>
+                    </TableBody>
+                  </Table>
+                </div>
               )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
+      {/* Site Details Dialog */}
       {selectedSite && (
         <SiteDetails 
           siteId={selectedSite} 
-          onClose={() => setSelectedSite(null)}
+          onClose={handleCloseSiteDetails}
         />
       )}
+
+      {/* Site Form Dialog */}
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <SiteForm
+            siteId={editingSiteId || undefined}
+            onSuccess={handleFormSuccess}
+            onCancel={handleFormCancel}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

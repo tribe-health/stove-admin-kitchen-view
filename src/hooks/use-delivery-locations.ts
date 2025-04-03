@@ -1,7 +1,7 @@
-
-import { useEffect } from 'react';
-import { useDeliveryLocationsStore } from '@/store/use-delivery-locations-store';
+import { useEffect, useState } from 'react';
+import { useDeliveryLocationsStore, DeliveryLocation } from '@/store/use-delivery-locations-store';
 import { format } from 'date-fns';
+import { Site } from '@/types';
 
 export function useDeliveryLocations() {
   const { 
@@ -10,10 +10,19 @@ export function useDeliveryLocations() {
     error, 
     currentWeekStart, 
     currentWeekEnd,
+    currentDeliveryPeriod,
     fetchLocations,
     addLocation,
-    currentDeliveryPeriod
+    updateLocation,
+    deleteLocation,
+    addSiteToLocation,
+    removeSiteFromLocation,
+    getLocationSites
   } = useDeliveryLocationsStore();
+
+  const [selectedLocationSites, setSelectedLocationSites] = useState<{
+    [locationId: string]: Site[]
+  }>({});
 
   // Format dates for display
   const formattedWeekRange = `${format(currentWeekStart, 'MMM d')} - ${format(currentWeekEnd, 'MMM d, yyyy')}`;
@@ -21,6 +30,28 @@ export function useDeliveryLocations() {
   useEffect(() => {
     fetchLocations();
   }, [fetchLocations]);
+
+  // Function to load sites for a specific location
+  const loadLocationSites = async (locationId: string) => {
+    const sites = await getLocationSites(locationId);
+    setSelectedLocationSites(prev => ({
+      ...prev,
+      [locationId]: sites
+    }));
+    return sites;
+  };
+
+  // Function to add a site to a location
+  const addSiteToLocationWithRefresh = async (siteId: string, locationId: string) => {
+    await addSiteToLocation(siteId, locationId);
+    await loadLocationSites(locationId);
+  };
+
+  // Function to remove a site from a location
+  const removeSiteFromLocationWithRefresh = async (siteId: string, locationId: string) => {
+    await removeSiteFromLocation(siteId, locationId);
+    await loadLocationSites(locationId);
+  };
 
   return {
     locations,
@@ -31,6 +62,12 @@ export function useDeliveryLocations() {
     currentWeekEnd,
     formattedWeekRange,
     fetchLocations,
-    addLocation // Return the wrapped function
+    addLocation,
+    updateLocation,
+    deleteLocation,
+    addSiteToLocation: addSiteToLocationWithRefresh,
+    removeSiteFromLocation: removeSiteFromLocationWithRefresh,
+    getLocationSites: loadLocationSites,
+    selectedLocationSites
   };
 }

@@ -1,7 +1,6 @@
-
 import { useEffect, useState } from 'react';
 import { DeliveryLocation } from '@/store/use-delivery-locations-store';
-import { MapPin } from 'lucide-react';
+import { MapPin, Clock, ChevronRight } from 'lucide-react';
 import { 
   Table, 
   TableHeader, 
@@ -10,13 +9,22 @@ import {
   TableBody, 
   TableCell
 } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { format } from 'date-fns';
 
 interface DeliveryLocationsTableProps {
   locations: DeliveryLocation[];
   isLoading: boolean;
+  onSelectLocation?: (location: DeliveryLocation) => void;
+  selectedLocationId?: string;
 }
 
-export function DeliveryLocationsTable({ locations, isLoading }: DeliveryLocationsTableProps) {
+export function DeliveryLocationsTable({ 
+  locations, 
+  isLoading, 
+  onSelectLocation,
+  selectedLocationId 
+}: DeliveryLocationsTableProps) {
   const [tableReady, setTableReady] = useState(false);
   
   // Force table to render regardless of loading state after a timeout
@@ -46,6 +54,12 @@ export function DeliveryLocationsTable({ locations, isLoading }: DeliveryLocatio
     );
   }
 
+  const handleSelectLocation = (location: DeliveryLocation) => {
+    if (onSelectLocation) {
+      onSelectLocation(location);
+    }
+  };
+
   return (
     <div className="border rounded-lg overflow-hidden">
       <Table>
@@ -55,22 +69,38 @@ export function DeliveryLocationsTable({ locations, isLoading }: DeliveryLocatio
             <TableHead>Address</TableHead>
             <TableHead>City</TableHead>
             <TableHead>State</TableHead>
-            <TableHead>Zip</TableHead>
             <TableHead>Opening Hours</TableHead>
+            <TableHead className="w-[80px]"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {locations.map((location) => (
-            <TableRow key={location.id}>
+            <TableRow 
+              key={location.id}
+              className={selectedLocationId === location.id ? 'bg-muted/50' : ''}
+              onClick={() => handleSelectLocation(location)}
+              style={{ cursor: 'pointer' }}
+            >
               <TableCell className="font-medium">{location.name}</TableCell>
               <TableCell>{location.address.address}</TableCell>
               <TableCell>{location.address.city}</TableCell>
               <TableCell>{location.address.state}</TableCell>
-              <TableCell>{location.address.zip}</TableCell>
               <TableCell>
                 {location.start_open_time && location.end_open_time
-                  ? `${location.start_open_time} - ${location.end_open_time}`
+                  ? `${format(new Date(location.start_open_time), 'h:mm a')} - ${format(new Date(location.end_open_time), 'h:mm a')}`
                   : 'Not specified'}
+              </TableCell>
+              <TableCell>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSelectLocation(location);
+                  }}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
               </TableCell>
             </TableRow>
           ))}
