@@ -261,7 +261,7 @@ export function DeliveryLocationsMap({ locations, isLoading }: DeliveryLocations
         if (!clusterId) return;
 
         const source = map.getSource('delivery-locations') as mapboxgl.GeoJSONSource;
-        source.getClusterExpansion(clusterId, (err, zoom) => {
+        source.getClusterExpansionZoom(clusterId, (err, zoom) => {
           if (err) return;
           
           map.flyTo({
