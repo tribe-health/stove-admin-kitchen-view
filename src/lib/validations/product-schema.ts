@@ -10,6 +10,7 @@ export const productSchema = z.object({
   photoUrl: z.string().optional(),
   productTypeId: z.string().optional(),
   instructions: z.string().optional(),
+  nutritionDetails: z.string().optional(),
 });
 
 export type ProductFormValues = z.infer<typeof productSchema>;

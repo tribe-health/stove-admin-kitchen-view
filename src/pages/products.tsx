@@ -1,5 +1,5 @@
-
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -8,14 +8,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -31,42 +23,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Search, MoreHorizontal, Plus, Package } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Textarea } from "@/components/ui/textarea";
-import { ProductFormValues, productSchema } from "@/lib/validations/product-schema";
-import { toast } from "sonner";
+import { Search, MoreHorizontal, Plus, Package, Edit, Eye } from "lucide-react";
 import { Product } from "@/store/use-product-store";
 import { useProducts } from "@/hooks/use-products";
-import { set } from "date-fns";
 
 export default function Products() {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
-
-  const { products, isLoading, addProduct } = useProducts();
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [showAddDialog, setShowAddDialog] = useState(false);
-
-  const form = useForm<ProductFormValues>({
-    resolver: zodResolver(productSchema),
-    defaultValues: {
-      name: "",
-      shortDescription: "",
-      unitPrice: 0,
-      unit: "",
-      productTypeId: "",
-    },
-  });
+  
+  const navigate = useNavigate();
+  const { products, isLoading } = useProducts();
 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
@@ -97,34 +64,14 @@ export default function Products() {
     setFilteredProducts(result);
   };
 
-  const onSubmit = async (data: ProductFormValues) => {
-    try {
-      // Transform form data to match API expectations
-      const productInput = {
-        product_type_id: data.productTypeId || '',
-        name: data.name,
-        short_description: data.shortDescription || null,
-        long_description: data.longDescription || null,
-        unit_price: data.unitPrice,
-        photo_url: data.photoUrl || null,
-        unit: data.unit || null,
-        data: {},
-        stripe_product_id: null
-      };
-      
-      const result = await addProduct(productInput);
-      
-      if (result) {
-        toast.success("Product added successfully!");
-        setShowAddDialog(false);
-        form.reset();
-      } else {
-        toast.error("Failed to add product");
-      }
-    } catch (error) {
-      console.error("Error adding product:", error);
-      toast.error("An error occurred while adding the product");
-    }
+  // Navigate to create product page
+  const handleAddProduct = () => {
+    navigate("/products/create");
+  };
+
+  // Navigate to edit product page
+  const handleEditProduct = (product: Product) => {
+    navigate(`/products/edit/${product.id}`);
   };
 
   // Extract unique product types properly
@@ -141,7 +88,7 @@ export default function Products() {
     if (products.length > 0) {
       applyFilters(searchTerm, typeFilter);
     }
-  }, [products, searchTerm, typeFilter, applyFilters]);
+  }, [products, searchTerm, typeFilter]);
 
   // Initialize filteredProducts when products change
   useEffect(() => {
@@ -155,118 +102,11 @@ export default function Products() {
           <h1 className="text-3xl font-bold tracking-tight">Products</h1>
           <p className="text-muted-foreground">Manage your menu items and food products.</p>
         </div>
-        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Product
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[550px]">
-            <DialogHeader>
-              <DialogTitle>Add New Product</DialogTitle>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Product name" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="productTypeId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Product Type</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select product type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {productTypes.map(type => (
-                            <SelectItem key={type.id} value={type.key}>{type.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="shortDescription"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Short Description</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Brief description" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="longDescription"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Long Description</FormLabel>
-                      <FormControl>
-                        <Textarea placeholder="Detailed description" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="flex gap-4">
-                  <FormField
-                    control={form.control}
-                    name="unitPrice"
-                    render={({ field }) => (
-                      <FormItem className="flex-1">
-                        <FormLabel>Price</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.01" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="unit"
-                    render={({ field }) => (
-                      <FormItem className="flex-1">
-                        <FormLabel>Unit</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., per item" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <DialogFooter>
-                  <Button type="submit">Save Product</Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
+        
+        <Button onClick={handleAddProduct}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Product
+        </Button>
       </div>
 
       <div className="flex flex-col gap-4 md:flex-row md:items-center">
@@ -320,16 +160,30 @@ export default function Products() {
             </TableHeader>
             <TableBody>
               {filteredProducts.map((product) => (
-              <TableRow key={product.id}>
-                <TableCell className="font-medium">
+              <TableRow 
+                key={product.id} 
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => handleEditProduct(product)}
+              >
+                <TableCell className="font-medium" onClick={(e) => e.stopPropagation()}>
                   {product.photo_url ? (
                     <img 
                       alt={product.name} 
                       src={product.photo_url} 
                       className="h-10 w-10 object-cover rounded-md"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditProduct(product);
+                      }}
                     />
                   ) : (
-                    <div className="h-10 w-10 bg-muted rounded-md flex items-center justify-center">
+                    <div 
+                      className="h-10 w-10 bg-muted rounded-md flex items-center justify-center"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditProduct(product);
+                      }}
+                    >
                       <Package className="h-5 w-5 text-muted-foreground" />
                     </div>
                   )}
@@ -341,7 +195,7 @@ export default function Products() {
                 <TableCell>
                   {new Date(product.created_at).toLocaleDateString()}
                 </TableCell>
-                <TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon">
@@ -350,9 +204,14 @@ export default function Products() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>Edit Product</DropdownMenuItem>
-                      <DropdownMenuItem>View Details</DropdownMenuItem>
-                      <DropdownMenuItem>Manage Inventory</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => handleEditProduct(product)}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit Product
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Details
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

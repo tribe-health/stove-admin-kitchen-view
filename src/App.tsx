@@ -6,6 +6,8 @@ import Login from "./pages/login";
 import Dashboard from "./pages/dashboard";
 import Orders from "./pages/orders";
 import Products from "./pages/products";
+import CreateProductPage from "./pages/create-product";
+import EditProductPage from "./pages/edit-product";
 import NotFound from "./pages/not-found";
 import { supabase } from "./integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -59,6 +61,8 @@ function App() {
         <Route path="/dashboard" element={<AdminLayout><Dashboard /></AdminLayout>} />
         <Route path="/orders" element={<AdminLayout><Orders /></AdminLayout>} />
         <Route path="/products" element={<AdminLayout><Products /></AdminLayout>} />
+        <Route path="/products/create" element={<CreateProductPage />} />
+        <Route path="/products/edit/:id" element={<EditProductPage />} />
         <Route path="/sites" element={<AdminLayout><Sites /></AdminLayout>} />
         <Route path="/users" element={<AdminLayout><Users /></AdminLayout>} />
         <Route path="/delivery-locations" element={<AdminLayout><DeliveryLocations /></AdminLayout>} />

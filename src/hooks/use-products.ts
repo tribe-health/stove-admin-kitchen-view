@@ -9,6 +9,7 @@ export const useProducts = () => {
     error,
     fetchProducts,
     addProduct,
+    updateProduct,
   } = useProductStore();
   useEffect(() => {
     const doFetch = async () => {
@@ -21,6 +22,7 @@ export const useProducts = () => {
     isLoading,
     error,
     fetchProducts,
-    addProduct
+    addProduct,
+    updateProduct
   };
 }

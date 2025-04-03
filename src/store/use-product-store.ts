@@ -45,6 +45,7 @@ interface ProductState {
   error: Error | null;
   fetchProducts: () => Promise<void>;
   addProduct: (product: ProductInput) => Promise<Product | null>;
+  updateProduct: (id: string, product: ProductInput) => Promise<Product | null>;
 }
 
 type ProductWithType = Database['public']['Tables']['products']['Row'] & {
@@ -117,6 +118,49 @@ export const useProductStore = create<ProductState>((set, get) => ({
         product_type: productWithType.product_type
       } as Product;
       set({ products: [...get().products, mappedProduct], isLoading: false });
+      return mappedProduct;
+    } catch (error) {
+      set({ error: error as Error, isLoading: false });
+      return null;
+    }
+  },
+  updateProduct: async (id: string, product: ProductInput) => {
+    try {
+      set({ isLoading: true, error: null });
+
+      // Create a properly typed product update object
+      const productUpdate: DbProductInsert = {
+        ...product,
+        // Handle data property correctly - convert to JSON compatible format
+        data: JSON.parse(JSON.stringify(product.data || {}))
+      }
+
+      const { data, error } = await supabase
+        .from('products')
+        .update(productUpdate)
+        .eq('id', id)
+        .select('*, product_type(*)');
+              
+      if (error) {
+        throw error;
+      }
+      if (!data || data.length === 0) {
+        set({ isLoading: false });
+        return null;
+      }
+      
+      const productWithType = data[0] as unknown as ProductWithType;
+      const mappedProduct = {
+        ...productWithType,
+        product_type: productWithType.product_type
+      } as Product;
+      
+      // Update the product in the store
+      const updatedProducts = get().products.map(p => 
+        p.id === id ? mappedProduct : p
+      );
+      
+      set({ products: updatedProducts, isLoading: false });
       return mappedProduct;
     } catch (error) {
       set({ error: error as Error, isLoading: false });
