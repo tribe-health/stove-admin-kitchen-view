@@ -3,14 +3,42 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 import { Database } from '@/integrations/supabase/types';
 
-type DbProduct = Database['public']['Tables']['products']['Row'];
-type DbProductType = Database['public']['Tables']['product_types']['Row'];
+// Define base database types
+type Tables = Database['public']['Tables'];
+type ProductRow = Tables['products']['Row'];
+type ProductTypeRow = Tables['product_types']['Row'];
 
-export interface ProductType extends Omit<DbProductType, 'schema'> {
+// Define the shape of products with joined data
+type ProductWithJoins = ProductRow & {
+  product_type?: ProductTypeRow;
+  product_types?: ProductTypeRow;
+};
+
+// Define our domain models
+export interface ProductType {
+  id: string;
+  name: string;
+  key: string;
+  cover_url: string | null;
+  icon_url: string | null;
+  created_at: string;
   schema: Record<string, unknown> | null;
 }
 
-export interface Product extends Omit<DbProduct, 'data'> {
+export interface Product {
+  id: string;
+  name: string;
+  unit: string;
+  short_description: string;
+  long_description: string;
+  nutrition_details: string;
+  instructions: string;
+  unit_price: number;
+  photo_url: string;
+  product_type_id: string;
+  stripe_product_id: string;
+  created_at: string;
+  updated_at: string;
   product_type?: ProductType;
   data: Record<string, unknown> | null;
 }
@@ -28,36 +56,88 @@ interface ProductState {
   editingProductMap: Map<string, EditingProduct>;
   createInput: Partial<Product>;
   
-  // Fetch operations
+  // Actions
   fetchProducts: () => Promise<void>;
   fetchProductById: (id: string) => Promise<Product | null>;
   fetchProductTypes: () => Promise<ProductType[]>;
-  
-  // CRUD operations
   createProduct: (product: Omit<Product, 'id' | 'created_at' | 'updated_at' | 'product_type'>) => Promise<Product | null>;
   updateProduct: (id: string, product: Partial<Omit<Product, 'id' | 'created_at' | 'updated_at' | 'product_type'>>) => Promise<Product | null>;
   deleteProduct: (id: string) => Promise<boolean>;
-  
-  // Alias for createProduct to match hook naming
   addProduct: (product: Omit<Product, 'id' | 'created_at' | 'updated_at' | 'product_type'>) => Promise<Product | null>;
-  
-  // Editing operations
   setEditingProduct: (product: EditingProduct) => void;
   createEditingProduct: (product: Product) => EditingProduct;
   saveEditingProduct: (product: EditingProduct) => Promise<Product | null>;
   getEditingProduct: (id: string) => EditingProduct | null;
-  
-  // Create form operations
   setCreateInput: (input: Partial<Product>) => void;
 }
 
-export const useProductStore = create<ProductState>((set, get) => ({
+// Helper function to convert database row to domain model
+const mapToProduct = (row: unknown): Product => {
+  const typedRow = row as {
+    id: string;
+    name: string;
+    unit: string;
+    short_description: string;
+    long_description: string;
+    nutrition_details: string;
+    instructions: string;
+    unit_price: number;
+    photo_url: string;
+    product_type_id: string;
+    stripe_product_id: string;
+    created_at: string;
+    updated_at: string;
+    data: unknown;
+    product_type?: {
+      id: string;
+      name: string;
+      key: string;
+      cover_url: string | null;
+      icon_url: string | null;
+      created_at: string;
+      schema: unknown;
+    };
+  };
+
+  return {
+    id: typedRow.id,
+    name: typedRow.name,
+    unit: typedRow.unit,
+    short_description: typedRow.short_description,
+    long_description: typedRow.long_description,
+    nutrition_details: typedRow.nutrition_details,
+    instructions: typedRow.instructions,
+    unit_price: typedRow.unit_price,
+    photo_url: typedRow.photo_url,
+    product_type_id: typedRow.product_type_id,
+    stripe_product_id: typedRow.stripe_product_id,
+    created_at: typedRow.created_at,
+    updated_at: typedRow.updated_at,
+    data: typedRow.data as Record<string, unknown> | null,
+    product_type: typedRow.product_type ? {
+      id: typedRow.product_type.id,
+      name: typedRow.product_type.name,
+      key: typedRow.product_type.key,
+      cover_url: typedRow.product_type.cover_url,
+      icon_url: typedRow.product_type.icon_url,
+      created_at: typedRow.product_type.created_at,
+      schema: typedRow.product_type.schema as Record<string, unknown> | null,
+    } : undefined,
+  };
+};
+
+// Helper function to prepare data for Supabase
+const prepareForSupabase = (data: Record<string, unknown> | null) => {
+  return data ? JSON.parse(JSON.stringify(data)) : null;
+};
+
+export const useProductStore = create<ProductState>()((set, get) => ({
   products: [],
   productTypes: [],
   isLoading: false,
   error: null,
   editingProduct: null,
-  editingProductMap: new Map<string, EditingProduct>(),
+  editingProductMap: new Map(),
   createInput: {},
 
   fetchProducts: async () => {
@@ -72,30 +152,9 @@ export const useProductStore = create<ProductState>((set, get) => ({
         `)
         .order('name');
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
-      // Map database fields to our interface using any to bypass type checking
-      const rawData = data as any[];
-      const products: Product[] = rawData.map(item => ({
-        id: item.id,
-        name: item.name,
-        unit: item.unit,
-        short_description: item.short_description,
-        long_description: item.long_description,
-        nutrition_details: item.nutrition_details,
-        instructions: item.instructions,
-        unit_price: item.unit_price,
-        photo_url: item.photo_url,
-        product_type_id: item.product_type_id,
-        stripe_product_id: item.stripe_product_id,
-        product_type: item.product_type || undefined,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
-        data: item.data as Record<string, unknown> | null
-      }));
-
+      const products = (data || []).map(row => mapToProduct(row));
       set({ products, isLoading: false });
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -103,7 +162,7 @@ export const useProductStore = create<ProductState>((set, get) => ({
     }
   },
 
-  fetchProductById: async (id: string) => {
+  fetchProductById: async (id) => {
     try {
       set({ isLoading: true, error: null });
       
@@ -116,30 +175,9 @@ export const useProductStore = create<ProductState>((set, get) => ({
         .eq('id', id)
         .single();
 
-      if (error) {
-        throw error;
-      }
-
-      // Map database fields to our interface using any to bypass type checking
-      const rawData = data as any;
-      const product: Product = {
-        id: rawData.id,
-        name: rawData.name,
-        unit: rawData.unit,
-        short_description: rawData.short_description,
-        long_description: rawData.long_description,
-        nutrition_details: rawData.nutrition_details,
-        instructions: rawData.instructions,
-        unit_price: rawData.unit_price,
-        photo_url: rawData.photo_url,
-        product_type_id: rawData.product_type_id,
-        stripe_product_id: rawData.stripe_product_id,
-        product_type: rawData.product_type || undefined,
-        created_at: rawData.created_at,
-        updated_at: rawData.updated_at,
-        data: rawData.data as Record<string, unknown> | null
-      };
-
+      if (error) throw error;
+      
+      const product = mapToProduct(data);
       set({ isLoading: false });
       return product;
     } catch (error) {
@@ -153,46 +191,22 @@ export const useProductStore = create<ProductState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       
-      // Convert Record<string, unknown> to Json for Supabase
-      const supabaseData = {
-        ...productData,
-        data: productData.data as any
-      };
-      
       const { data, error } = await supabase
         .from('products')
-        .insert([supabaseData])
+        .insert([{
+          ...productData,
+          data: prepareForSupabase(productData.data)
+        }])
         .select(`
           *,
           product_type (*)
         `)
         .single();
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
-      // Map database fields to our interface using any to bypass type checking
-      const rawData = data as any;
-      const product: Product = {
-        id: rawData.id,
-        name: rawData.name,
-        unit: rawData.unit,
-        short_description: rawData.short_description,
-        long_description: rawData.long_description,
-        nutrition_details: rawData.nutrition_details,
-        instructions: rawData.instructions,
-        unit_price: rawData.unit_price,
-        photo_url: rawData.photo_url,
-        product_type_id: rawData.product_type_id,
-        stripe_product_id: rawData.stripe_product_id,
-        product_type: rawData.product_type || undefined,
-        created_at: rawData.created_at,
-        updated_at: rawData.updated_at,
-        data: rawData.data as Record<string, unknown> | null
-      };
-
-      // Update local state
+      const product = mapToProduct(data);
+      
       const updatedProducts = [...get().products, product];
       set({ products: updatedProducts, isLoading: false });
       
@@ -220,15 +234,12 @@ export const useProductStore = create<ProductState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       
-      // Convert Record<string, unknown> to Json for Supabase
-      const supabaseData = {
-        ...productData,
-        data: productData.data as any
-      };
-      
       const { data, error } = await supabase
         .from('products')
-        .update(supabaseData)
+        .update({
+          ...productData,
+          data: prepareForSupabase(productData.data || null)
+        })
         .eq('id', id)
         .select(`
           *,
@@ -236,31 +247,10 @@ export const useProductStore = create<ProductState>((set, get) => ({
         `)
         .single();
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
-      // Map database fields to our interface using any to bypass type checking
-      const rawData = data as any;
-      const updatedProduct: Product = {
-        id: rawData.id,
-        name: rawData.name,
-        unit: rawData.unit,
-        short_description: rawData.short_description,
-        long_description: rawData.long_description,
-        nutrition_details: rawData.nutrition_details,
-        instructions: rawData.instructions,
-        unit_price: rawData.unit_price,
-        photo_url: rawData.photo_url,
-        product_type_id: rawData.product_type_id,
-        stripe_product_id: rawData.stripe_product_id,
-        product_type: rawData.product_type || undefined,
-        created_at: rawData.created_at,
-        updated_at: rawData.updated_at,
-        data: rawData.data as Record<string, unknown> | null
-      };
-
-      // Update local state
+      const updatedProduct = mapToProduct(data);
+      
       const updatedProducts = get().products.map(product => 
         product.id === id ? updatedProduct : product
       );
@@ -290,7 +280,6 @@ export const useProductStore = create<ProductState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       
-      // Find the product to get its name for the toast message
       const productToDelete = get().products.find(product => product.id === id);
       
       const { error } = await supabase
@@ -298,11 +287,8 @@ export const useProductStore = create<ProductState>((set, get) => ({
         .delete()
         .eq('id', id);
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
-      // Update local state
       const updatedProducts = get().products.filter(product => product.id !== id);
       set({ products: updatedProducts, isLoading: false });
       
@@ -335,11 +321,19 @@ export const useProductStore = create<ProductState>((set, get) => ({
         .select('*')
         .order('name');
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
-      return data as ProductType[];
+      const productTypes = data.map(type => ({
+        id: type.id,
+        name: type.name,
+        key: type.key,
+        cover_url: type.cover_url,
+        icon_url: type.icon_url,
+        created_at: type.created_at,
+        schema: type.schema as Record<string, unknown> | null,
+      }));
+
+      return productTypes;
     } catch (error) {
       console.error('Error fetching product types:', error);
       set({ error: error as Error });
@@ -347,36 +341,31 @@ export const useProductStore = create<ProductState>((set, get) => ({
     }
   },
 
-  // Alias for createProduct to match hook naming
   addProduct: async (productData) => {
     return get().createProduct(productData);
   },
 
-  // Editing operations
-  setEditingProduct: (product: EditingProduct) => {
+  setEditingProduct: (product) => {
     const map = get().editingProductMap;
     map.set(product.id, product);
     set({ editingProduct: product, editingProductMap: map });
   },
 
-  createEditingProduct: (product: Product): EditingProduct => {
-    return {
-      ...product,
-      is_dirty: false
-    };
-  },
+  createEditingProduct: (product) => ({
+    ...product,
+    is_dirty: false
+  }),
 
-  saveEditingProduct: async (product: EditingProduct) => {
+  saveEditingProduct: async (product) => {
     const { id, ...updateData } = product;
     return get().updateProduct(id, updateData);
   },
 
-  getEditingProduct: (id: string) => {
+  getEditingProduct: (id) => {
     return get().editingProductMap.get(id) || null;
   },
 
-  // Create form operations
-  setCreateInput: (input: Partial<Product>) => {
+  setCreateInput: (input) => {
     set({ createInput: input });
   }
 }));

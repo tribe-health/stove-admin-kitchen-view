@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { DeliveryLocation, DeliveryPeriod } from '@/store/use-delivery-locations-store';
-import { DeliveryLocationForm } from './delivery-location-form';
+import { DeliveryLocationForm, DeliveryLocationFormValues } from './delivery-location-form';
 import { DeliveryLocationSites } from './delivery-location-sites';
 import { useDeliveryLocations } from '@/hooks/use-delivery-locations';
 import { useSites } from '@/hooks/use-sites';
@@ -31,6 +31,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, MapPin, Clock, Building, Edit, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, isValid } from 'date-fns';
+import { v4 as uuidv4 } from 'uuid';
 
 interface DeliveryLocationDetailProps {
   location?: DeliveryLocation;
@@ -97,7 +98,7 @@ export function DeliveryLocationDetail({
     }
   };
 
-  const handleFormSubmit = async (formData: any) => {
+  const handleFormSubmit = async (formData: DeliveryLocationFormValues) => {
     try {
       setIsFormSubmitting(true);
 
@@ -105,10 +106,18 @@ export function DeliveryLocationDetail({
         // Create new location
         const newLocation = await addLocation({
           name: formData.name,
-          address: formData.address,
-          start_open_time: formData.start_open_time,
-          end_open_time: formData.end_open_time,
-          provider_id: formData.provider_id,
+          address: {
+            id: uuidv4(), // Using UUID instead of temporary ID
+            name: formData.address.name,
+            address: formData.address.address,
+            address1: formData.address.address1,
+            city: formData.address.city,
+            state: formData.address.state,
+            zip: formData.address.zip,
+          },
+          start_open_time: formData.startOpenTime,
+          end_open_time: formData.endOpenTime,
+          provider_id: formData.providerId,
           delivery_period_id: deliveryPeriodId,
         });
         
@@ -121,10 +130,18 @@ export function DeliveryLocationDetail({
         // Update existing location
         const updatedLocation = await updateLocation(location.id, {
           name: formData.name,
-          address: formData.address,
-          start_open_time: formData.start_open_time,
-          end_open_time: formData.end_open_time,
-          provider_id: formData.provider_id,
+          address: {
+            id: location.address.id, // Use existing address ID
+            name: formData.address.name,
+            address: formData.address.address,
+            address1: formData.address.address1,
+            city: formData.address.city,
+            state: formData.address.state,
+            zip: formData.address.zip,
+          },
+          start_open_time: formData.startOpenTime,
+          end_open_time: formData.endOpenTime,
+          provider_id: formData.providerId,
         });
         
         if (updatedLocation) {

@@ -1,8 +1,8 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, MoreHorizontal } from 'lucide-react';
 import { useProducts } from '@/hooks/use-products';
+import { Product } from '@/store/use-product-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -43,7 +43,7 @@ export default function Products() {
     product.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleEdit = (product: any) => {
+  const handleEdit = (product: Product) => {
     // 1. Create a new EditingProduct instance from the product
     const editingProduct = createEditingProduct(product);
     

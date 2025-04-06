@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Table,
@@ -36,14 +36,7 @@ export default function Users() {
     applyFilters(term);
   };
 
-  useEffect(() => {
-    // Only apply filters if users array exists and has items
-    if (users && users.length >= 0) {
-      applyFilters(searchTerm);
-    }
-  }, [users, searchTerm]);
-
-  const applyFilters = (term: string) => {
+  const applyFilters = useCallback((term: string) => {
     // Check if users exist before trying to filter them
     if (!users || users.length === 0) {
       setFilteredUsers([]);
@@ -62,7 +55,14 @@ export default function Users() {
     }
 
     setFilteredUsers(result);
-  };
+  }, [users]);
+
+  useEffect(() => {
+    // Only apply filters if users array exists and has items
+    if (users && users.length >= 0) {
+      applyFilters(searchTerm);
+    }
+  }, [users, searchTerm, applyFilters]);
 
   const handleViewUser = (id: string) => {
     // Navigate to user details page

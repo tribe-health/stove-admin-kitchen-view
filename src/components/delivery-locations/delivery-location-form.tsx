@@ -46,7 +46,7 @@ const deliveryLocationSchema = z.object({
   deliveryPeriodId: z.string().optional(),
 });
 
-type DeliveryLocationFormValues = z.infer<typeof deliveryLocationSchema>;
+export type DeliveryLocationFormValues = z.infer<typeof deliveryLocationSchema>;
 
 interface DeliveryLocationFormProps {
   onSubmit: (data: DeliveryLocationFormValues) => void;

@@ -151,6 +151,38 @@ export default function CreateProductPage() {
     };
   }, [form, createInput, debouncedSetDirty]);
 
+  // Define callbacks at component level
+  const handleImageUploaded = useCallback((url: string) => {
+    form.setValue("photoUrl", url);
+    setImageUrl(url);
+    setIsDirty(true); // For image upload, we can set dirty immediately
+    
+    // Update the createInput in the store with the new image URL
+    if (createInput) {
+      const updatedInput = { ...createInput, photo_url: url };
+      setCreateInput(updatedInput);
+    }
+    
+    toast({
+      title: "Upload Completed",
+    });
+  }, [form, setImageUrl, setIsDirty, createInput, setCreateInput]);
+
+  const handleLongDescriptionChange = useCallback((value: string) => {
+    form.setValue("longDescription", value);
+    debouncedSetDirty(); // Debounced dirty flag update
+  }, [form, debouncedSetDirty]);
+
+  const handleInstructionsChange = useCallback((value: string) => {
+    form.setValue("instructions", value);
+    debouncedSetDirty(); // Debounced dirty flag update
+  }, [form, debouncedSetDirty]);
+
+  const handleNutritionDetailsChange = useCallback((value: string) => {
+    form.setValue("nutritionDetails", value);
+    debouncedSetDirty(); // Debounced dirty flag update
+  }, [form, debouncedSetDirty]);
+
   // Function to temporarily save the form data without creating in the database
   async function onSave(data: ProductFormValues) {
     setLoading(true);
@@ -297,7 +329,7 @@ export default function CreateProductPage() {
                     {imageUrl && (
                       <div className="mb-4">
                         <p className="text-sm text-muted-foreground mb-2">Current Image:</p>
-                        <div className="relative border rounded-md overflow-hidden" style={{ maxWidth: '300px' }}>
+                        <div className="relative border rounded-md overflow-hidden product-image-preview">
                           <img
                             src={imageUrl}
                             alt="Current product"
@@ -309,21 +341,7 @@ export default function CreateProductPage() {
                     
                     <ImageUploader
                       initialImageUrl={imageUrl || ""}
-                      onImageUploaded={useCallback((url) => {
-                        form.setValue("photoUrl", url);
-                        setImageUrl(url);
-                        setIsDirty(true); // For image upload, we can set dirty immediately
-                        
-                        // Update the createInput in the store with the new image URL
-                        if (createInput) {
-                          const updatedInput = { ...createInput, photo_url: url };
-                          setCreateInput(updatedInput);
-                        }
-                        
-                        toast({
-                          title: "Upload Completed",
-                        });
-                      }, [form, setImageUrl, setIsDirty, createInput, setCreateInput])}
+                      onImageUploaded={handleImageUploaded}
                     />
                   </div>
                 </FormControl>
@@ -444,10 +462,7 @@ export default function CreateProductPage() {
                     <FormControl>
                       <SimpleMarkdownEditor
                         markdown={field.value}
-                        onChange={useCallback((value) => {
-                          field.onChange(value);
-                          debouncedSetDirty(); // Debounced dirty flag update
-                        }, [field, debouncedSetDirty])}
+                        onChange={handleLongDescriptionChange}
                         label="Long Description"
                         className="min-h-[300px]"
                       />
@@ -465,10 +480,7 @@ export default function CreateProductPage() {
                     <FormControl>
                       <SimpleMarkdownEditor
                         markdown={field.value}
-                        onChange={useCallback((value) => {
-                          field.onChange(value);
-                          debouncedSetDirty(); // Debounced dirty flag update
-                        }, [field, debouncedSetDirty])}
+                        onChange={handleInstructionsChange}
                         label="Instructions"
                         className="min-h-[300px]"
                       />
@@ -486,10 +498,7 @@ export default function CreateProductPage() {
                     <FormControl>
                       <SimpleMarkdownEditor
                         markdown={field.value}
-                        onChange={useCallback((value) => {
-                          field.onChange(value);
-                          debouncedSetDirty(); // Debounced dirty flag update
-                        }, [field, debouncedSetDirty])}
+                        onChange={handleNutritionDetailsChange}
                         label="Nutrition Details"
                         className="min-h-[300px]"
                       />

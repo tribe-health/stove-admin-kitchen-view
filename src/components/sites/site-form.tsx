@@ -65,12 +65,12 @@ interface SiteType {
   name: string;
   key: string;
   managing_table: string;
-  schema?: any;
+  schema?: Json;
 }
 
 interface SiteFormProps {
   siteId?: string;
-  onSuccess: (site: any) => void;
+  onSuccess: (site: { id: string; name: string; organization_id: string; site_type_id: string; data: Json }) => void;
   onCancel: () => void;
 }
 
@@ -178,8 +178,8 @@ export function SiteForm({ siteId, onSuccess, onCancel }: SiteFormProps) {
         
         // Handle the data field which is of type Json
         if (siteData.data && typeof siteData.data === 'object') {
-          const siteDataObj = siteData.data as Record<string, any>;
-          form.setValue("code", siteDataObj.code || "");
+          const siteDataObj = siteData.data as Json;
+          form.setValue("code", (siteDataObj as Record<string, unknown>).code as string || "");
         }
 
         // Fetch site type details

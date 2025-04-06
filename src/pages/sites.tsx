@@ -65,8 +65,8 @@ export default function Sites() {
         // Extract code from data if it exists and is an object
         let code = "";
         if (site.data && typeof site.data === 'object') {
-          const dataObj = site.data as Record<string, any>;
-          code = dataObj.code || "";
+          const dataObj = site.data as Record<string, unknown>;
+          code = (dataObj.code as string) || "";
         }
         
         return site.name.toLowerCase().includes(term) || 
@@ -131,8 +131,8 @@ export default function Sites() {
   // Helper function to safely get code from data
   function getSiteCode(data: Json): string {
     if (data && typeof data === 'object') {
-      const dataObj = data as Record<string, any>;
-      return dataObj.code || "N/A";
+      const dataObj = data as Record<string, unknown>;
+      return (dataObj.code as string) || "N/A";
     }
     return "N/A";
   }
