@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { DeliveryLocation, DeliveryPeriod } from '@/store/use-delivery-locations-store';
 import { DeliveryLocationForm, DeliveryLocationFormValues } from './delivery-location-form';
 import { DeliveryLocationSites } from './delivery-location-sites';
@@ -68,22 +68,7 @@ export function DeliveryLocationDetail({
   const [sitesLoading, setSitesLoading] = useState(false);
   const [isFormSubmitting, setIsFormSubmitting] = useState(false);
 
-  // Load sites associated with this location
-  useEffect(() => {
-    if (location && !isNew) {
-      loadSites();
-    }
-  }, [location, isNew]);
-
-  // Helper function to safely format time values
-  const safeFormatTime = (timeString?: string) => {
-    if (!timeString) return null;
-    
-    const date = new Date(timeString);
-    return isValid(date) ? format(date, 'h:mm a') : null;
-  };
-
-  const loadSites = async () => {
+  const loadSites = useCallback(async () => {
     if (!location) return;
     
     setSitesLoading(true);
@@ -96,6 +81,23 @@ export function DeliveryLocationDetail({
     } finally {
       setSitesLoading(false);
     }
+  }, [location, getLocationSites]);
+
+  useEffect(() => {
+    const fetchSites = async () => {
+      if (location && !isNew) {
+        await loadSites();
+      }
+    };
+    fetchSites();
+  }, [location, isNew, loadSites]);
+
+  // Helper function to safely format time values
+  const safeFormatTime = (timeString?: string) => {
+    if (!timeString) return null;
+    
+    const date = new Date(timeString);
+    return isValid(date) ? format(date, 'h:mm a') : null;
   };
 
   const handleFormSubmit = async (formData: DeliveryLocationFormValues) => {

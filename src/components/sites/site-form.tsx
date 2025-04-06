@@ -107,13 +107,114 @@ export function SiteForm({ siteId, onSuccess, onCancel }: SiteFormProps) {
   const watchSiteTypeId = form.watch("site_type_id");
 
   useEffect(() => {
-    fetchOrganizationsAndSiteTypes();
-    if (siteId) {
-      fetchSiteDetails();
-    } else {
-      setLoading(false);
-    }
-  }, [siteId]);
+    const initializeForm = async () => {
+      try {
+        // Fetch organizations
+        const { data: orgData, error: orgError } = await supabase
+          .from('organization')
+          .select('id, name')
+          .order('name');
+
+        if (orgError) throw orgError;
+        setOrganizations(orgData || []);
+
+        // Fetch site types
+        const { data: typeData, error: typeError } = await supabase
+          .from('site_type')
+          .select('*')
+          .order('name');
+
+        if (typeError) throw typeError;
+        setSiteTypes(typeData || []);
+
+        if (siteId) {
+          // Fetch site details
+          const { data: siteData, error: siteError } = await supabase
+            .from('site')
+            .select('*')
+            .eq('id', siteId)
+            .single();
+
+          if (siteError) throw siteError;
+
+          if (siteData) {
+            // Set basic site data
+            form.setValue("name", siteData.name);
+            form.setValue("organization_id", siteData.organization_id);
+            form.setValue("site_type_id", siteData.site_type_id);
+            
+            // Handle the data field which is of type Json
+            if (siteData.data && typeof siteData.data === 'object') {
+              const siteDataObj = siteData.data as Json;
+              form.setValue("code", (siteDataObj as Record<string, unknown>).code as string || "");
+            }
+
+            // Fetch site type details
+            const { data: typeData, error: typeError } = await supabase
+              .from('site_type')
+              .select('*')
+              .eq('id', siteData.site_type_id)
+              .single();
+
+            if (typeError) throw typeError;
+            
+            if (typeData && typeData.managing_table === "stations") {
+              // Fetch station details
+              const { data: stationData, error: stationError } = await supabase
+                .from('stations')
+                .select('*')
+                .eq('site_id', siteId)
+                .single();
+
+              if (stationError && stationError.code !== 'PGRST116') { // Not found is ok
+                throw stationError;
+              }
+
+              if (stationData) {
+                // Set station specific fields
+                form.setValue("station_name", stationData.name);
+                form.setValue("station_number", stationData.number || undefined);
+                form.setValue("registration_code", stationData.registration_code || "");
+                
+                // Get address details if available
+                if (stationData.address_id) {
+                  const { data: addressData, error: addressError } = await supabase
+                    .from('address')
+                    .select('*')
+                    .eq('id', stationData.address_id)
+                    .single();
+                    
+                  if (!addressError && addressData) {
+                    form.setValue("address", addressData.address || "");
+                    form.setValue("address1", addressData.address1 || "");
+                    form.setValue("city", addressData.city || "");
+                    form.setValue("state", addressData.state || "");
+                    form.setValue("zip", addressData.zip || "");
+                    form.setValue("latitude", addressData.latitude || undefined);
+                    form.setValue("longitude", addressData.longitude || undefined);
+                  }
+                }
+                
+                form.setValue("description", stationData.description || "");
+                form.setValue("long_description", stationData.long_description || "");
+              }
+            }
+          }
+        }
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        toast({
+          variant: "destructive",
+          title: "Error fetching data",
+          description: (error as Error).message,
+        });
+        setLoading(false);
+      }
+    };
+
+    initializeForm();
+  }, [siteId, toast, form]);
 
   // Update the selected site type when the site type ID changes
   useEffect(() => {
@@ -129,121 +230,6 @@ export function SiteForm({ siteId, onSuccess, onCancel }: SiteFormProps) {
       }
     }
   }, [watchSiteTypeId, siteTypes]);
-
-  async function fetchOrganizationsAndSiteTypes() {
-    try {
-      // Fetch organizations
-      const { data: orgData, error: orgError } = await supabase
-        .from('organization')
-        .select('id, name')
-        .order('name');
-
-      if (orgError) throw orgError;
-      setOrganizations(orgData || []);
-
-      // Fetch site types
-      const { data: typeData, error: typeError } = await supabase
-        .from('site_type')
-        .select('*')
-        .order('name');
-
-      if (typeError) throw typeError;
-      setSiteTypes(typeData || []);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      toast({
-        variant: "destructive",
-        title: "Error fetching data",
-        description: (error as Error).message,
-      });
-    }
-  }
-
-  async function fetchSiteDetails() {
-    try {
-      // Fetch site data
-      const { data: siteData, error: siteError } = await supabase
-        .from('site')
-        .select('*')
-        .eq('id', siteId)
-        .single();
-
-      if (siteError) throw siteError;
-
-      if (siteData) {
-        // Set basic site data
-        form.setValue("name", siteData.name);
-        form.setValue("organization_id", siteData.organization_id);
-        form.setValue("site_type_id", siteData.site_type_id);
-        
-        // Handle the data field which is of type Json
-        if (siteData.data && typeof siteData.data === 'object') {
-          const siteDataObj = siteData.data as Json;
-          form.setValue("code", (siteDataObj as Record<string, unknown>).code as string || "");
-        }
-
-        // Fetch site type details
-        const { data: typeData, error: typeError } = await supabase
-          .from('site_type')
-          .select('*')
-          .eq('id', siteData.site_type_id)
-          .single();
-
-        if (typeError) throw typeError;
-        
-        if (typeData && typeData.managing_table === "stations") {
-          // Fetch station details
-          const { data: stationData, error: stationError } = await supabase
-            .from('stations')
-            .select('*')
-            .eq('site_id', siteId)
-            .single();
-
-          if (stationError && stationError.code !== 'PGRST116') { // Not found is ok
-            throw stationError;
-          }
-
-          if (stationData) {
-            // Set station specific fields
-            form.setValue("station_name", stationData.name);
-            form.setValue("station_number", stationData.number || undefined);
-            form.setValue("registration_code", stationData.registration_code || "");
-            
-            // Get address details if available
-            if (stationData.address_id) {
-              const { data: addressData, error: addressError } = await supabase
-                .from('address')
-                .select('*')
-                .eq('id', stationData.address_id)
-                .single();
-                
-              if (!addressError && addressData) {
-                form.setValue("address", addressData.address || "");
-                form.setValue("address1", addressData.address1 || "");
-                form.setValue("city", addressData.city || "");
-                form.setValue("state", addressData.state || "");
-                form.setValue("zip", addressData.zip || "");
-                form.setValue("latitude", addressData.latitude || undefined);
-                form.setValue("longitude", addressData.longitude || undefined);
-              }
-            }
-            
-            form.setValue("description", stationData.description || "");
-            form.setValue("long_description", stationData.long_description || "");
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching site details:', error);
-      toast({
-        variant: "destructive",
-        title: "Error fetching site details",
-        description: (error as Error).message,
-      });
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function onSubmit(values: FormValues) {
     setSubmitting(true);

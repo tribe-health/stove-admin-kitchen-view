@@ -1,0 +1,18 @@
+.smallCluster {
+  background-color: #51bbd6;
+}
+
+.mediumCluster {
+  background-color: #f1f075;
+}
+
+.largeCluster {
+  background-color: #f28cb1;
+}
+
+.clusterIndicator {
+  height: 0.75rem;
+  width: 0.75rem;
+  border-radius: 9999px;
+  margin-right: 0.5rem;
+} 

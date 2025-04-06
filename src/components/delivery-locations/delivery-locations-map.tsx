@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import L from 'leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
+import styles from './delivery-locations-map.module.css';
 
 // CSS for the map container
 const mapContainerStyle = {
@@ -321,15 +322,15 @@ export function DeliveryLocationsMap({
         {useClustering && (
           <>
             <div className="flex items-center">
-              <div className="h-3 w-3 rounded-full mr-2" style={{ backgroundColor: '#51bbd6' }} />
+              <div className={`${styles.clusterIndicator} ${styles.smallCluster}`} />
               <span>Small Cluster</span>
             </div>
             <div className="flex items-center">
-              <div className="h-3 w-3 rounded-full mr-2" style={{ backgroundColor: '#f1f075' }} />
+              <div className={`${styles.clusterIndicator} ${styles.mediumCluster}`} />
               <span>Medium Cluster</span>
             </div>
             <div className="flex items-center">
-              <div className="h-3 w-3 rounded-full mr-2" style={{ backgroundColor: '#f28cb1' }} />
+              <div className={`${styles.clusterIndicator} ${styles.largeCluster}`} />
               <span>Large Cluster</span>
             </div>
           </>

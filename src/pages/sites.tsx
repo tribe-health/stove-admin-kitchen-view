@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -50,9 +50,38 @@ export default function Sites() {
   const [editingSiteId, setEditingSiteId] = useState<string | null>(null);
   const { toast } = useToast();
 
+  const fetchSites = useCallback(async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('site')
+        .select(`
+          *,
+          organization:organization_id (name),
+          site_type:site_type_id (name, key, managing_table)
+        `);
+
+      if (error) {
+        throw error;
+      }
+
+      setSites(data || []);
+      setFilteredSites(data || []);
+    } catch (error) {
+      console.error('Error fetching sites:', error);
+      toast({
+        variant: "destructive",
+        title: "Error fetching sites",
+        description: (error as Error).message,
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
   useEffect(() => {
     fetchSites();
-  }, []);
+  }, [fetchSites]);
 
   useEffect(() => {
     // Filter sites based on search term and active tab
@@ -83,35 +112,6 @@ export default function Sites() {
     
     setFilteredSites(filtered);
   }, [sites, searchTerm, activeTab]);
-
-  async function fetchSites() {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('site')
-        .select(`
-          *,
-          organization:organization_id (name),
-          site_type:site_type_id (name, key, managing_table)
-        `);
-
-      if (error) {
-        throw error;
-      }
-
-      setSites(data || []);
-      setFilteredSites(data || []);
-    } catch (error) {
-      console.error('Error fetching sites:', error);
-      toast({
-        variant: "destructive",
-        title: "Error fetching sites",
-        description: (error as Error).message,
-      });
-    } finally {
-      setLoading(false);
-    }
-  }
 
   function getSiteTypeBadgeColor(siteType: string) {
     switch (siteType.toLowerCase()) {

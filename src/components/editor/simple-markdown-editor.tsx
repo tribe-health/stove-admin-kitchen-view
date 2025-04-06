@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { Components } from 'react-markdown';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Save, Bold, Italic, List, ListOrdered, Heading1, Heading2, Heading3, Link, Image, Code } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from '@/lib/utils';
+import styles from './simple-markdown-editor.module.css';
 
 export interface SimpleMarkdownEditorProps {
   /**
@@ -398,15 +399,14 @@ export default function SimpleMarkdownEditor({
                 value={content}
                 onChange={(e) => handleChange(e.target.value)}
                 onBlur={onBlur}
-                className="w-full h-full resize-none font-mono"
                 placeholder="Enter markdown here..."
-                style={{ minHeight: 'calc(100vh - 250px)' }}
+                className={cn("w-full h-full resize-none font-mono", styles.textarea)}
               />
             </div>
           </TabsContent>
           
           <TabsContent value="preview" className="flex-1 overflow-auto border-0 p-0 m-0">
-            <div className="p-4 prose prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 max-w-none" style={{ minHeight: 'calc(100vh - 200px)' }}>
+            <div className={cn("p-4 prose prose-headings:mt-4 prose-headings:mb-2 prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0 max-w-none", styles.preview)}>
               <ReactMarkdown components={{
                 h1: ({node, ...props}) => <h1 className="text-2xl font-bold mt-4 mb-2" {...props} />,
                 h2: ({node, ...props}) => <h2 className="text-xl font-bold mt-4 mb-2" {...props} />,
@@ -415,7 +415,7 @@ export default function SimpleMarkdownEditor({
                 p: ({node, ...props}) => <p className="my-2" {...props} />,
                 ul: ({node, ...props}) => <ul className="list-disc pl-5 my-2" {...props} />,
                 ol: ({node, ...props}) => <ol className="list-decimal pl-5 my-2" {...props} />,
-                li: ({node, ...props}) => <li className="my-1" {...props} />,
+                li: (props) => <ul className="my-0 list-none"><li className="my-1" {...props} /></ul>,
                 a: ({node, ...props}) => <a className="text-blue-600 hover:underline" {...props} />,
                 strong: ({node, ...props}) => <strong className="font-bold" {...props} />,
                 em: ({node, ...props}) => <em className="italic" {...props} />,

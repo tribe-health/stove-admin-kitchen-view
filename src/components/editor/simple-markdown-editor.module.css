@@ -1,0 +1,7 @@
+.textarea {
+  min-height: calc(100vh - 250px);
+}
+
+.preview {
+  min-height: calc(100vh - 200px);
+} 
