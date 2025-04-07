@@ -14,6 +14,7 @@ export const productSchema = z.object({
   photoUrl: z.string().optional().nullable()
     .refine(val => !val || val.trim() !== "", "Photo URL cannot be empty if provided"),
   productTypeId: z.string().optional().nullable(),
+  isFeatured: z.boolean().default(false),
 });
 
 export type ProductFormValues = z.infer<typeof productSchema>;

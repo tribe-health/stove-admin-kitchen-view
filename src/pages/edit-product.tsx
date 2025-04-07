@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ImageUploader } from "@/components/ui/image-uploader";
 import { Label } from "@/components/ui/label";
 import { useProductStore, Product } from "@/store/use-product-store";
@@ -44,6 +45,7 @@ export default function EditProductPage() {
       unitPrice: 0,
       photoUrl: "",
       productTypeId: "",
+      isFeatured: false,
     },
   });
 
@@ -80,6 +82,7 @@ export default function EditProductPage() {
           unitPrice: productData.unit_price,
           photoUrl: productData.photo_url || "",
           productTypeId: productData.product_type_id || "",
+          isFeatured: productData.is_featured || false,
         });
 
         // Fetch product types
@@ -140,6 +143,7 @@ export default function EditProductPage() {
         unit_price: data.unitPrice,
         photo_url: data.photoUrl || null,
         product_type_id: data.productTypeId || null,
+        is_featured: data.isFeatured,
         data: product.data,
         stripe_product_id: product.stripe_product_id
       };
@@ -263,6 +267,28 @@ export default function EditProductPage() {
                   )}
                 />
                 
+                <FormField
+                  control={form.control}
+                  name="isFeatured"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          disabled={loading}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Featured Product</FormLabel>
+                        <FormDescription>
+                          Featured products will be highlighted in the store.
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+
                 <div className="flex gap-4">
                   <FormField
                     control={form.control}

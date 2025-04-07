@@ -39,6 +39,7 @@ export interface Product {
   stripe_product_id: string;
   created_at: string;
   updated_at: string;
+  is_featured: boolean;
   product_type?: ProductType;
   data: Record<string, unknown> | null;
 }
@@ -77,6 +78,7 @@ const mapToProduct = (row: unknown): Product => {
     stripe_product_id: string;
     created_at: string;
     updated_at: string;
+    is_featured: boolean;
     data: unknown;
     product_type?: {
       id: string;
@@ -103,6 +105,7 @@ const mapToProduct = (row: unknown): Product => {
     stripe_product_id: typedRow.stripe_product_id,
     created_at: typedRow.created_at,
     updated_at: typedRow.updated_at,
+    is_featured: typedRow.is_featured || false,
     data: typedRow.data as Record<string, unknown> | null,
     product_type: typedRow.product_type ? {
       id: typedRow.product_type.id,

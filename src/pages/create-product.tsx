@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
   FormControl,
@@ -12,6 +13,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "@/components/ui/use-toast";
@@ -43,6 +45,7 @@ export default function CreateProductPage() {
       unitPrice: 0,
       photoUrl: "",
       productTypeId: "",
+      isFeatured: false,
     },
   });
 
@@ -164,6 +167,7 @@ export default function CreateProductPage() {
         unit_price: data.unitPrice,
         photo_url: data.photoUrl || null,
         product_type_id: data.productTypeId || null,
+        is_featured: data.isFeatured,
         data: null,
         stripe_product_id: null
       };
@@ -309,6 +313,29 @@ export default function CreateProductPage() {
                   />
                 </FormControl>
                 <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Featured Checkbox */}
+          <FormField
+            control={form.control}
+            name="isFeatured"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={loading}
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel>Featured Product</FormLabel>
+                  <FormDescription>
+                    Featured products will be highlighted in the store.
+                  </FormDescription>
+                </div>
               </FormItem>
             )}
           />
