@@ -43,17 +43,11 @@ export interface Product {
   data: Record<string, unknown> | null;
 }
 
-export interface EditingProduct extends Product {
-  is_dirty?: boolean;
-}
-
 interface ProductState {
   products: Product[];
   productTypes: ProductType[];
   isLoading: boolean;
   error: Error | null;
-  editingProduct: EditingProduct | null;
-  editingProductMap: Map<string, EditingProduct>;
   createInput: Partial<Product>;
   
   // Actions
@@ -64,10 +58,6 @@ interface ProductState {
   updateProduct: (id: string, product: Partial<Omit<Product, 'id' | 'created_at' | 'updated_at' | 'product_type'>>) => Promise<Product | null>;
   deleteProduct: (id: string) => Promise<boolean>;
   addProduct: (product: Omit<Product, 'id' | 'created_at' | 'updated_at' | 'product_type'>) => Promise<Product | null>;
-  setEditingProduct: (product: EditingProduct) => void;
-  createEditingProduct: (product: Product) => EditingProduct;
-  saveEditingProduct: (product: EditingProduct) => Promise<Product | null>;
-  getEditingProduct: (id: string) => EditingProduct | null;
   setCreateInput: (input: Partial<Product>) => void;
 }
 
@@ -136,8 +126,6 @@ export const useProductStore = create<ProductState>()((set, get) => ({
   productTypes: [],
   isLoading: false,
   error: null,
-  editingProduct: null,
-  editingProductMap: new Map(),
   createInput: {},
 
   fetchProducts: async () => {
@@ -170,7 +158,7 @@ export const useProductStore = create<ProductState>()((set, get) => ({
         .from('products')
         .select(`
           *,
-          product_type (*)
+          product_types (*)
         `)
         .eq('id', id)
         .single();
@@ -199,7 +187,7 @@ export const useProductStore = create<ProductState>()((set, get) => ({
         }])
         .select(`
           *,
-          product_type (*)
+          product_types (*)
         `)
         .single();
 
@@ -243,7 +231,7 @@ export const useProductStore = create<ProductState>()((set, get) => ({
         .eq('id', id)
         .select(`
           *,
-          product_type (*)
+          product_types (*)
         `)
         .single();
 
@@ -345,25 +333,6 @@ export const useProductStore = create<ProductState>()((set, get) => ({
     return get().createProduct(productData);
   },
 
-  setEditingProduct: (product) => {
-    const map = get().editingProductMap;
-    map.set(product.id, product);
-    set({ editingProduct: product, editingProductMap: map });
-  },
-
-  createEditingProduct: (product) => ({
-    ...product,
-    is_dirty: false
-  }),
-
-  saveEditingProduct: async (product) => {
-    const { id, ...updateData } = product;
-    return get().updateProduct(id, updateData);
-  },
-
-  getEditingProduct: (id) => {
-    return get().editingProductMap.get(id) || null;
-  },
 
   setCreateInput: (input) => {
     set({ createInput: input });

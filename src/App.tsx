@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from "react";
-import { Routes, Route, BrowserRouter } from "react-router-dom";
+import { Routes, Route, BrowserRouter, createBrowserRouter } from "react-router-dom";
 import Index from "./pages/index";
 import Login from "./pages/login";
 import Dashboard from "./pages/dashboard";
@@ -53,7 +53,7 @@ function App() {
   }, [toast]);
 
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Toaster />
       <Routes>
         <Route path="/" element={<Index />} />

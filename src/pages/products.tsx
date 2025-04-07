@@ -1,12 +1,23 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, MoreHorizontal } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreHorizontal, AlertTriangle } from 'lucide-react';
 import { useProducts } from '@/hooks/use-products';
 import { Product } from '@/store/use-product-store';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { toast } from '@/components/ui/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Table,
   TableBody,
@@ -29,32 +40,65 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 export default function Products() {
   const [search, setSearch] = useState('');
+  const [deleteProductId, setDeleteProductId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const navigate = useNavigate();
   const {
     products,
     isLoading,
     error,
-    createEditingProduct,
-    setEditingProduct,
-    saveEditingProduct
+    deleteProduct
   } = useProducts();
+  
+  // Find the product to delete
+  const productToDelete = deleteProductId 
+    ? products.find(product => product.id === deleteProductId) 
+    : null;
 
   const filteredProducts = products.filter((product) =>
     product.name.toLowerCase().includes(search.toLowerCase())
   );
 
   const handleEdit = (product: Product) => {
-    // 1. Create a new EditingProduct instance from the product
-    const editingProduct = createEditingProduct(product);
-    
-    // 2. Set the dirty flag to false
-    editingProduct.is_dirty = false;
-    
-    // 3. Set as current editing product (this will also save to the map)
-    setEditingProduct(editingProduct);
-    
-    // 4. Navigate to the editor with just the product ID
+    // Navigate directly to the edit page with the product ID
     navigate(`/products/edit/${product.id}`);
+  };
+  
+  const handleDeleteClick = (productId: string) => {
+    setDeleteProductId(productId);
+  };
+  
+  const handleConfirmDelete = async () => {
+    if (!deleteProductId) return;
+    
+    setIsDeleting(true);
+    try {
+      const success = await deleteProduct(deleteProductId);
+      if (success) {
+        toast({
+          title: "Product deleted",
+          description: productToDelete 
+            ? `${productToDelete.name} has been deleted.` 
+            : "Product has been deleted.",
+        });
+      } else {
+        throw new Error("Failed to delete product");
+      }
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      toast({
+        variant: "destructive",
+        title: "Error deleting product",
+        description: `There was an error deleting the product: ${(error as Error).message}`,
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteProductId(null);
+    }
+  };
+  
+  const handleCancelDelete = () => {
+    setDeleteProductId(null);
   };
 
   return (
@@ -149,7 +193,10 @@ export default function Products() {
                               <Edit className="h-4 w-4 mr-2" />
                               Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleDeleteClick(product.id)}
+                              className="text-destructive focus:text-destructive"
+                            >
                               <Trash2 className="h-4 w-4 mr-2" />
                               Delete
                             </DropdownMenuItem>
@@ -172,6 +219,31 @@ export default function Products() {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteProductId} onOpenChange={(open) => !open && setDeleteProductId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Confirm Deletion
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {productToDelete?.name}? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelDelete} disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmDelete} 
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

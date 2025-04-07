@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,7 +11,7 @@ import { ImageUploader } from "@/components/ui/image-uploader";
 import { Label } from "@/components/ui/label";
 import { useProductStore, Product } from "@/store/use-product-store";
 import { productSchema, ProductFormValues } from "@/lib/validations/product-schema";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/components/ui/use-toast";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SimpleMarkdownEditor from "@/components/editor/simple-markdown-editor";
@@ -20,19 +20,17 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 export default function EditProductPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const {
     updateProduct,
     fetchProductById,
-    fetchProductTypes,
-    getEditingProduct,
-    saveEditingProduct
+    fetchProductTypes
   } = useProductStore();
   const [product, setProduct] = useState<Product | null>(null);
   const [productTypes, setProductTypes] = useState<Array<{ id: string; name: string }>>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [isLoadingProduct, setIsLoadingProduct] = useState(true);
   const [isLoadingTypes, setIsLoadingTypes] = useState(true);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -54,26 +52,22 @@ export default function EditProductPage() {
       if (!id) return;
 
       try {
-        // First try to get the product from the editing map
-        let productData = getEditingProduct(id);
+        // Fetch the product from the database
+        const productData = await fetchProductById(id);
         
-        // If not found in the editing map, fetch it from the database
+        // If not found, show error and navigate back
         if (!productData) {
-          productData = await fetchProductById(id);
-          
-          // If still not found, show error and navigate back
-          if (!productData) {
-            toast({
-              variant: "destructive",
-              title: "Product not found",
-              description: "The requested product could not be found.",
-            });
-            navigate("/products");
-            return;
-          }
+          toast({
+            variant: "destructive",
+            title: "Product not found",
+            description: "The requested product could not be found.",
+          });
+          navigate("/products");
+          return;
         }
         
         setProduct(productData);
+        setImageUrl(productData.photo_url || null);
         
         // Set form values
         form.reset({
@@ -105,24 +99,38 @@ export default function EditProductPage() {
     };
 
     loadData();
-  }, [id, fetchProductById, fetchProductTypes, getEditingProduct, form, navigate, toast]);
+  }, [id, fetchProductById, fetchProductTypes, form, navigate]);
+
+  // Define callbacks at component level
+  const handleImageUploaded = useCallback((url: string) => {
+    form.setValue("photoUrl", url);
+    setImageUrl(url);
+    
+    toast({
+      title: "Upload Completed",
+    });
+  }, [form]);
+
+  const handleLongDescriptionChange = useCallback((value: string) => {
+    form.setValue("longDescription", value);
+  }, [form]);
+
+  const handleInstructionsChange = useCallback((value: string) => {
+    form.setValue("instructions", value);
+  }, [form]);
+
+  const handleNutritionDetailsChange = useCallback((value: string) => {
+    form.setValue("nutritionDetails", value);
+  }, [form]);
 
   const onSubmit = async (data: ProductFormValues) => {
-    if (!id) return;
+    if (!id || !product) return;
     
-    setIsLoading(true);
+    setLoading(true);
     
     try {
-      // Get the current editing product or create one from the product
-      const editingProduct = getEditingProduct(id) || product;
-      
-      if (!editingProduct) {
-        throw new Error("Product not found");
-      }
-      
-      // Update the editing product with form data
-      const updatedProduct = {
-        ...editingProduct,
+      // Update the product with form data
+      const productData = {
         name: data.name,
         unit: data.unit || null,
         short_description: data.shortDescription || null,
@@ -132,11 +140,12 @@ export default function EditProductPage() {
         unit_price: data.unitPrice,
         photo_url: data.photoUrl || null,
         product_type_id: data.productTypeId || null,
-        is_dirty: true
+        data: product.data,
+        stripe_product_id: product.stripe_product_id
       };
 
-      // Save the editing product
-      const result = await saveEditingProduct(updatedProduct);
+      // Update the product
+      const result = await updateProduct(id, productData);
       
       if (result) {
         toast({
@@ -144,6 +153,8 @@ export default function EditProductPage() {
           description: `${result.name} has been updated successfully.`,
         });
         navigate("/products");
+      } else {
+        throw new Error("Failed to update product");
       }
     } catch (error) {
       console.error("Error updating product:", error);
@@ -153,7 +164,7 @@ export default function EditProductPage() {
         description: `There was an error updating the product: ${(error as Error).message}`,
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -236,10 +247,13 @@ export default function EditProductPage() {
                           <Input
                             type="number"
                             placeholder="0.00"
+                            min="0.01"
+                            step="0.01"
                             className="pl-7"
                             {...field}
                             onChange={(e) => {
-                              field.onChange(parseFloat(e.target.value) || 0);
+                              const value = parseFloat(e.target.value);
+                              field.onChange(isNaN(value) ? 0 : value);
                             }}
                           />
                         </div>
@@ -320,9 +334,7 @@ export default function EditProductPage() {
                         <FormControl>
                           <ImageUploader
                             initialImageUrl={field.value}
-                            onImageUploaded={(url) => {
-                              field.onChange(url);
-                            }}
+                            onImageUploaded={handleImageUploaded}
                           />
                         </FormControl>
                         <FormMessage />
@@ -356,10 +368,13 @@ export default function EditProductPage() {
                         <FormItem>
                           <FormLabel>Full Description</FormLabel>
                           <FormControl>
-                            <SimpleMarkdownEditor
-                              markdown={field.value || ""}
-                              onChange={field.onChange}
-                            />
+                            <>
+                              <SimpleMarkdownEditor
+                                markdown={field.value || ""}
+                                onChange={handleLongDescriptionChange}
+                              />
+                              <FormMessage />
+                            </>
                           </FormControl>
                           <FormDescription>
                             Detailed information about the product. Supports markdown formatting.
@@ -379,10 +394,13 @@ export default function EditProductPage() {
                         <FormItem>
                           <FormLabel>Cooking Instructions</FormLabel>
                           <FormControl>
-                            <SimpleMarkdownEditor
-                              markdown={field.value || ""}
-                              onChange={field.onChange}
-                            />
+                            <>
+                              <SimpleMarkdownEditor
+                                markdown={field.value || ""}
+                                onChange={handleInstructionsChange}
+                              />
+                              <FormMessage />
+                            </>
                           </FormControl>
                           <FormDescription>
                             Preparation or cooking instructions for the product.
@@ -402,10 +420,13 @@ export default function EditProductPage() {
                         <FormItem>
                           <FormLabel>Nutrition Details</FormLabel>
                           <FormControl>
-                            <SimpleMarkdownEditor
-                              markdown={field.value || ""}
-                              onChange={field.onChange}
-                            />
+                            <>
+                              <SimpleMarkdownEditor
+                                markdown={field.value || ""}
+                                onChange={handleNutritionDetailsChange}
+                              />
+                              <FormMessage />
+                            </>
                           </FormControl>
                           <FormDescription>
                             Information about nutritional content, allergens, etc.
@@ -424,12 +445,12 @@ export default function EditProductPage() {
             <Button
               variant="outline"
               onClick={() => navigate("/products")}
-              disabled={isLoading}
+              disabled={loading}
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Update Product
             </Button>
           </div>

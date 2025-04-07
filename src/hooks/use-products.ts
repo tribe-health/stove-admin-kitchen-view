@@ -12,11 +12,7 @@ export const useProducts = () => {
     fetchProductTypes,
     addProduct,
     updateProduct,
-    editingProduct,
-    setEditingProduct,
-    createEditingProduct,
-    saveEditingProduct,
-    getEditingProduct,
+    deleteProduct,
     createInput,
     setCreateInput
   } = useProductStore();
@@ -37,11 +33,7 @@ export const useProducts = () => {
     fetchProductTypes,
     addProduct,
     updateProduct,
-    editingProduct,
-    setEditingProduct,
-    createEditingProduct,
-    saveEditingProduct,
-    getEditingProduct,
+    deleteProduct,
     createInput,
     setCreateInput
   };

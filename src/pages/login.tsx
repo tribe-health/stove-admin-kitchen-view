@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,9 +28,11 @@ export default function Login() {
   const { isLoggedIn } = useAuthStore();
 
   // Redirect if already logged in
-  if (isLoggedIn) {
-    navigate("/dashboard");
-  }
+  useEffect(() => {
+    if (isLoggedIn) {
+      navigate("/dashboard");
+    }
+  }, [isLoggedIn, navigate]);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -48,9 +50,12 @@ export default function Login() {
       await authService.login(data);
       toast.success("Login successful");
       navigate("/dashboard");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
-      setError(error?.message || "Failed to login. Please check your credentials.");
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : "Failed to login. Please check your credentials.";
+      setError(errorMessage);
       toast.error("Failed to login. Please check your credentials.");
     } finally {
       setIsLoading(false);

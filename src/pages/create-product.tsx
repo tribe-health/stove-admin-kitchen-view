@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { debounce } from "lodash";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
@@ -31,8 +30,6 @@ export default function CreateProductPage() {
   const [loading, setLoading] = useState(false);
   const [isLoadingTypes, setIsLoadingTypes] = useState(true);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
-  const [isDirty, setIsDirty] = useState(false);
-  const [savedToDatabase, setSavedToDatabase] = useState(false);
 
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productSchema),
@@ -49,11 +46,10 @@ export default function CreateProductPage() {
     },
   });
 
-  // Initialize createInput if it doesn't exist
+  // Initialize form with default values
   useEffect(() => {
-    setIsDirty(false); // Reset dirty state on initial load
+    // Create a new empty product input instance if needed
     if (!createInput) {
-      // Create a new empty product input instance
       const newProductInput = {
         product_type_id: "",
         name: "",
@@ -68,13 +64,8 @@ export default function CreateProductPage() {
         stripe_product_id: null,
       };
       setCreateInput(newProductInput);
-    }
-  }, [createInput, setCreateInput]);
-
-  // Initialize form with createInput values when available
-  useEffect(() => {
-    setIsDirty(false); // Reset dirty state when loading from store
-    if (createInput) {
+    } else {
+      // Set form values from createInput
       form.reset({
         name: createInput.name || "",
         shortDescription: createInput.short_description || "",
@@ -90,7 +81,7 @@ export default function CreateProductPage() {
       // Set image URL for the image uploader
       setImageUrl(createInput.photo_url || null);
     }
-  }, [createInput, form]);
+  }, [createInput, form, setCreateInput]);
 
   // Load product types on component mount
   useEffect(() => {
@@ -130,32 +121,11 @@ export default function CreateProductPage() {
     };
   };
 
-  // Create a debounced version of setIsDirty to prevent excessive re-renders
-  const debouncedSetDirty = useRef(
-    debounce(() => {
-      setIsDirty(true);
-    }, 300)
-  ).current;
-  
-  // Watch for form changes to set dirty state, with debouncing
-  useEffect(() => {
-    const subscription = form.watch(() => {
-      if (createInput) {
-        debouncedSetDirty();
-      }
-    });
-    
-    return () => {
-      subscription.unsubscribe();
-      debouncedSetDirty.cancel();
-    };
-  }, [form, createInput, debouncedSetDirty]);
 
   // Define callbacks at component level
   const handleImageUploaded = useCallback((url: string) => {
     form.setValue("photoUrl", url);
     setImageUrl(url);
-    setIsDirty(true); // For image upload, we can set dirty immediately
     
     // Update the createInput in the store with the new image URL
     if (createInput) {
@@ -166,47 +136,22 @@ export default function CreateProductPage() {
     toast({
       title: "Upload Completed",
     });
-  }, [form, setImageUrl, setIsDirty, createInput, setCreateInput]);
+  }, [form, setImageUrl, createInput, setCreateInput]);
 
   const handleLongDescriptionChange = useCallback((value: string) => {
     form.setValue("longDescription", value);
-    debouncedSetDirty(); // Debounced dirty flag update
-  }, [form, debouncedSetDirty]);
+  }, [form]);
 
   const handleInstructionsChange = useCallback((value: string) => {
     form.setValue("instructions", value);
-    debouncedSetDirty(); // Debounced dirty flag update
-  }, [form, debouncedSetDirty]);
+  }, [form]);
 
   const handleNutritionDetailsChange = useCallback((value: string) => {
     form.setValue("nutritionDetails", value);
-    debouncedSetDirty(); // Debounced dirty flag update
-  }, [form, debouncedSetDirty]);
-
-  // Function to temporarily save the form data without creating in the database
-  async function onSave(data: ProductFormValues) {
-    setLoading(true);
-    try {
-      // Update the createInput in the store
-      const productInput = productFormValuesToProductInput(data);
-      setCreateInput(productInput);
-      setIsDirty(false); // Reset dirty state after saving
-      toast({
-        title: "Product saved temporarily",
-      });
-    } catch (error) {
-      console.error("Error saving product:", error);
-      toast({
-        variant: "destructive",
-        title: "Failed to save product",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }
+  }, [form]);
 
   // Function to create the product in the database
-  async function onCreate(data: ProductFormValues) {
+  async function onSubmit(data: ProductFormValues) {
     setLoading(true);
     try {
       const productData = {
@@ -227,8 +172,6 @@ export default function CreateProductPage() {
       
       if (result) {
         // Clear the createInput after successful creation
-        setSavedToDatabase(true);
-        setIsDirty(false);
         setCreateInput(null);
         
         toast({
@@ -251,10 +194,6 @@ export default function CreateProductPage() {
     }
   }
 
-  // Original submit function now calls save
-  async function onSubmit(data: ProductFormValues) {
-    await onSave(data);
-  }
 
   return (
     <div className="space-y-6 pb-24">
@@ -270,41 +209,8 @@ export default function CreateProductPage() {
         </Button>
         <h1 className="text-3xl font-bold tracking-tight">Create New Product</h1>
         
-        {/* Status indicators */}
-        <div className="flex items-center gap-2 ml-auto">
-          {isDirty && (
-            <Badge variant="destructive" className="flex items-center gap-1">
-              <AlertCircle className="h-3 w-3" />
-              Unsaved Changes
-            </Badge>
-          )}
-          
-          {!isDirty && createInput && (
-            <Badge variant="outline" className="flex items-center gap-1">
-              <Save className="h-3 w-3" />
-              Changes Saved
-            </Badge>
-          )}
-          
-          {savedToDatabase && (
-            <Badge variant="secondary" className="flex items-center gap-1">
-              <Database className="h-3 w-3" />
-              Saved to Database
-            </Badge>
-          )}
-        </div>
       </div>
       
-      {/* Dirty warning alert */}
-      {isDirty && (
-        <Alert variant="destructive" className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Unsaved Changes</AlertTitle>
-          <AlertDescription>
-            You have unsaved changes. Click "Save" to store them temporarily or "Create Product" to save to the database.
-          </AlertDescription>
-        </Alert>
-      )}
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
@@ -419,9 +325,14 @@ export default function CreateProductPage() {
                     <Input
                       type="number"
                       placeholder="0.00"
+                      min="0.01"
+                      step="0.01"
                       disabled={loading}
                       {...field}
-                      onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                      onChange={(e) => {
+                        const value = parseFloat(e.target.value);
+                        field.onChange(isNaN(value) ? 0 : value);
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
@@ -460,12 +371,15 @@ export default function CreateProductPage() {
                   name="longDescription"
                   render={({ field }) => (
                     <FormControl>
-                      <SimpleMarkdownEditor
-                        markdown={field.value}
-                        onChange={handleLongDescriptionChange}
-                        label="Long Description"
-                        className="min-h-[300px]"
-                      />
+                      <>
+                        <SimpleMarkdownEditor
+                          markdown={field.value || ""}
+                          onChange={handleLongDescriptionChange}
+                          label="Long Description"
+                          className="min-h-[300px]"
+                        />
+                        <FormMessage />
+                      </>
                     </FormControl>
                   )}
                 />
@@ -478,12 +392,15 @@ export default function CreateProductPage() {
                   name="instructions"
                   render={({ field }) => (
                     <FormControl>
-                      <SimpleMarkdownEditor
-                        markdown={field.value}
-                        onChange={handleInstructionsChange}
-                        label="Instructions"
-                        className="min-h-[300px]"
-                      />
+                      <>
+                        <SimpleMarkdownEditor
+                          markdown={field.value || ""}
+                          onChange={handleInstructionsChange}
+                          label="Instructions"
+                          className="min-h-[300px]"
+                        />
+                        <FormMessage />
+                      </>
                     </FormControl>
                   )}
                 />
@@ -496,12 +413,15 @@ export default function CreateProductPage() {
                   name="nutritionDetails"
                   render={({ field }) => (
                     <FormControl>
-                      <SimpleMarkdownEditor
-                        markdown={field.value}
-                        onChange={handleNutritionDetailsChange}
-                        label="Nutrition Details"
-                        className="min-h-[300px]"
-                      />
+                      <>
+                        <SimpleMarkdownEditor
+                          markdown={field.value || ""}
+                          onChange={handleNutritionDetailsChange}
+                          label="Nutrition Details"
+                          className="min-h-[300px]"
+                        />
+                        <FormMessage />
+                      </>
                     </FormControl>
                   )}
                 />
@@ -512,17 +432,17 @@ export default function CreateProductPage() {
         </form>
       </Form>
 
-      {/* Fixed bottom bar with Save and Create buttons */}
+      {/* Fixed bottom bar with Create button */}
       <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 flex justify-end gap-4 z-10">
         <Button
           variant="outline"
-          onClick={form.handleSubmit(onSave)}
+          onClick={() => navigate("/products")}
           disabled={loading}
         >
-          {loading ? "Saving..." : "Save"}
+          Cancel
         </Button>
         <Button
-          onClick={form.handleSubmit(onCreate)}
+          onClick={form.handleSubmit(onSubmit)}
           disabled={loading}
         >
           {loading ? "Creating..." : "Create Product"}
