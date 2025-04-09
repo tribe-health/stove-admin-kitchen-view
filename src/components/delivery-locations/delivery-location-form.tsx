@@ -155,14 +155,8 @@ export function DeliveryLocationForm({
   // Set first provider as default when providers are loaded and no provider is selected
   useEffect(() => {
     if (!isLoadingProviders && providers.length > 0 && !form.getValues('providerId')) {
-      const defaultProviderId = providers[0].id;
-      form.setValue('providerId', defaultProviderId);
-      
-      // Manually trigger onChange to ensure the value is registered in the form state
-      const event = {
-        target: { value: defaultProviderId }
-      };
-      form.handleSubmit(() => {})();
+      // Simply set the default provider ID without triggering validation
+      form.setValue('providerId', providers[0].id, { shouldValidate: false });
     }
   }, [providers, isLoadingProviders, form]);
 
@@ -185,12 +179,14 @@ export function DeliveryLocationForm({
       return;
     }
 
-    // Ensure provider ID is set, using the first provider as fallback if needed
-    let providerId = data.providerId;
-    if (!providerId && providers.length > 0) {
-      providerId = providers[0].id;
-    }
-
+    // CRITICAL: Always use the provider ID from the form, or the first provider as fallback
+    // This ensures we always have a provider ID even if the user didn't change the default
+    // This is the key part of the fix for the provider ID issue
+    const providerId = data.providerId || form.getValues('providerId') || (providers.length > 0 ? providers[0].id : '');
+    
+    // Log to verify the provider ID is being used
+    console.log('Provider ID for submission:', providerId);
+    
     try {
       // Set geocoding loading state
       setIsGeocodingLoading(true);
@@ -219,10 +215,13 @@ export function DeliveryLocationForm({
         },
         start_open_time: format(startTime, 'HH:mm'),
         end_open_time: format(endTime, 'HH:mm'),
-        provider_id: providerId,
+        provider_id: providerId, // Always use the provider ID
         delivery_period_id: data.deliveryPeriodId || deliveryPeriodId,
       };
 
+      // Log the form data to verify provider_id is included
+      console.log('Submitting form data:', formData);
+      
       onSubmit(formData);
     } catch (error) {
       console.error("Error during form submission:", error);
@@ -232,7 +231,7 @@ export function DeliveryLocationForm({
         address: data.address,
         start_open_time: format(startTime, 'HH:mm'),
         end_open_time: format(endTime, 'HH:mm'),
-        provider_id: providerId,
+        provider_id: providerId, // Always use the provider ID
         delivery_period_id: data.deliveryPeriodId || deliveryPeriodId,
       };
       
@@ -307,13 +306,9 @@ export function DeliveryLocationForm({
                   <FormItem>
                     <FormLabel>Provider</FormLabel>
                     <Select
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        // Ensure the value is properly set in the form
-                        form.setValue('providerId', value, { shouldValidate: true });
-                      }}
-                      value={field.value || (providers.length > 0 ? providers[0].id : '')}
-                      defaultValue={field.value || (providers.length > 0 ? providers[0].id : '')}
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      defaultValue={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
