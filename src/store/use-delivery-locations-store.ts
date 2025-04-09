@@ -425,43 +425,76 @@ export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, ge
     
     deleteLocation: async (id: string) => {
       try {
+        console.log('Starting deleteLocation in store for ID:', id);
         set({ isLoading: true, error: null });
 
         // Get the address ID before deleting the location
+        console.log('Fetching location to get address_id');
         const { data: location, error: fetchError } = await supabase
           .from('delivery_location')
           .select('address_id')
           .eq('id', id)
           .single();
 
-        if (fetchError) throw new Error(fetchError.message);
+        if (fetchError) {
+          console.error('Error fetching location for deletion:', fetchError);
+          throw new Error(fetchError.message);
+        }
+
+        console.log('Found location with address_id:', location?.address_id);
+
+        // First, delete any site_delivery_location associations
+        console.log('Deleting site_delivery_location associations');
+        const { error: siteLocationError } = await supabase
+          .from('site_delivery_location')
+          .delete()
+          .eq('delivery_location_id', id);
+
+        if (siteLocationError) {
+          console.error('Error deleting site_delivery_location associations:', siteLocationError);
+          // Continue with deletion even if this fails
+        }
 
         // Delete the delivery location
+        console.log('Deleting delivery location');
         const { error: deleteError } = await supabase
           .from('delivery_location')
           .delete()
           .eq('id', id);
 
-        if (deleteError) throw new Error(deleteError.message);
+        if (deleteError) {
+          console.error('Error deleting delivery location:', deleteError);
+          throw new Error(deleteError.message);
+        }
 
         // Delete the associated address
+        console.log('Deleting associated address');
         const { error: addressError } = await supabase
           .from('address')
           .delete()
           .eq('id', location.address_id);
 
-        if (addressError) throw new Error(addressError.message);
+        if (addressError) {
+          console.error('Error deleting address:', addressError);
+          throw new Error(addressError.message);
+        }
 
+        console.log('Deletion successful, updating state');
         set(state => ({
           locations: state.locations.filter(loc => loc.id !== id),
+          selectedLocationId: state.selectedLocationId === id ? null : state.selectedLocationId,
           isLoading: false
         }));
+        
+        console.log('Delete operation completed successfully');
+        // Don't return anything to match the Promise<void> return type
       } catch (error) {
-        console.error('Error deleting delivery location:', error);
+        console.error('Error in deleteLocation function:', error);
         set({
           error: error as Error,
           isLoading: false
         });
+        throw error; // Re-throw the error so it can be caught by the component
       }
     },
     

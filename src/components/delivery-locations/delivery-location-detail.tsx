@@ -161,10 +161,16 @@ export function DeliveryLocationDetail({
   };
 
   const handleDelete = async () => {
-    if (!location || !onDelete) return;
+    if (!location || !onDelete) {
+      console.error('Cannot delete: location or onDelete function is missing', { location, onDelete });
+      toast.error('Cannot delete location due to missing data');
+      return;
+    }
     
     try {
+      console.log('Attempting to delete location:', location.id);
       await onDelete(location.id);
+      console.log('Delete operation completed');
       toast.success('Delivery location deleted successfully');
       setIsDeleting(false);
     } catch (error) {
