@@ -56,6 +56,45 @@ export type DbDeliveryLocationWithAddress = DbDeliveryLocation & {
   address: DbAddress;
 }
 
+// Function to get coordinates from address using Mapbox API
+const getCoordinatesFromAddress = async (address: {
+  address: string;
+  address1?: string;
+  city: string;
+  state: string;
+  zip: string;
+}) => {
+  const MAPBOX_API_KEY = "pk.eyJ1IjoiZ3FhZG9uaXMiLCJhIjoiY2o4bzdnZXc2MDA1ZTJ3cnp5cTM3N2p2bCJ9.Mp12t4wj_L2KAzQocwCuWQ";
+  
+  try {
+    // Format the address for the API query
+    const searchText = encodeURIComponent(
+      `${address.address} ${address.address1 || ''} ${address.city}, ${address.state} ${address.zip}`
+    );
+    
+    const response = await fetch(
+      `https://api.mapbox.com/search/geocode/v6/forward?q=${searchText}&access_token=${MAPBOX_API_KEY}`
+    );
+    
+    if (!response.ok) {
+      throw new Error(`Geocoding API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    // Check if we have results
+    if (data.features && data.features.length > 0) {
+      const [longitude, latitude] = data.features[0].geometry.coordinates;
+      return { latitude, longitude };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Error fetching coordinates:", error);
+    return null;
+  }
+};
+
 export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, get) => {
   // Calculate current week (Sunday to Saturday)
   const now = new Date();
@@ -188,6 +227,39 @@ export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, ge
       try {
         set({ isLoading: true, error: null });
 
+        // Check if latitude and longitude are provided, if not, get them from Mapbox
+        let latitude = location.address.latitude;
+        let longitude = location.address.longitude;
+
+        if ((!latitude || !longitude) && 
+            location.address.address && 
+            location.address.city && 
+            location.address.state && 
+            location.address.zip) {
+          console.log('Geocoding address for delivery location...');
+          
+          try {
+            const coordinates = await getCoordinatesFromAddress({
+              address: location.address.address,
+              address1: location.address.address1,
+              city: location.address.city,
+              state: location.address.state,
+              zip: location.address.zip
+            });
+            
+            if (coordinates) {
+              latitude = coordinates.latitude;
+              longitude = coordinates.longitude;
+              console.log('Geocoding successful:', coordinates);
+            } else {
+              console.log('Geocoding returned no results');
+            }
+          } catch (geocodingError) {
+            console.error('Error geocoding address:', geocodingError);
+            // Continue with the process even if geocoding fails
+          }
+        }
+
         // First, create the address
         const { data: addressData, error: addressError } = await supabase
           .from('address')
@@ -198,8 +270,8 @@ export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, ge
             city: location.address.city,
             state: location.address.state,
             zip: location.address.zip,
-            latitude: location.address.latitude,
-            longitude: location.address.longitude,
+            latitude: latitude,
+            longitude: longitude,
           })
           .select()
           .single();
@@ -211,7 +283,7 @@ export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, ge
           name: location.name,
           start_open_time: location.start_open_time?.toString(),
           end_open_time: location.end_open_time?.toString(),
-          provider_id: location.provider_id,
+          provider_id: location.provider_id || '8fe720cc-6641-42c8-8fde-612dcce14520',
           delivery_period_id: location.delivery_period_id || get().selectedDeliveryPeriod?.id,
         }
         
@@ -260,6 +332,39 @@ export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, ge
 
           if (fetchError) throw new Error(fetchError.message);
 
+          // Always look up the latitude and longitude when updating an address
+          // because the address has likely changed, making existing coordinates incorrect
+          let latitude = null;
+          let longitude = null;
+
+          if (location.address.address && 
+              location.address.city && 
+              location.address.state && 
+              location.address.zip) {
+            console.log('Geocoding address for delivery location update...');
+            
+            try {
+              const coordinates = await getCoordinatesFromAddress({
+                address: location.address.address,
+                address1: location.address.address1,
+                city: location.address.city,
+                state: location.address.state,
+                zip: location.address.zip
+              });
+              
+              if (coordinates) {
+                latitude = coordinates.latitude;
+                longitude = coordinates.longitude;
+                console.log('Geocoding successful:', coordinates);
+              } else {
+                console.log('Geocoding returned no results');
+              }
+            } catch (geocodingError) {
+              console.error('Error geocoding address:', geocodingError);
+              // Continue with the process even if geocoding fails
+            }
+          }
+
           // Update the address
           const { error: addressError } = await supabase
             .from('address')
@@ -270,8 +375,8 @@ export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, ge
               city: location.address.city,
               state: location.address.state,
               zip: location.address.zip,
-              latitude: location.address.latitude,
-              longitude: location.address.longitude,
+              latitude: latitude,
+              longitude: longitude,
             })
             .eq('id', currentLocation.address_id);
 

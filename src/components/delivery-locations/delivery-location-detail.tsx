@@ -119,7 +119,7 @@ export function DeliveryLocationDetail({
           },
           start_open_time: formData.startOpenTime,
           end_open_time: formData.endOpenTime,
-          provider_id: formData.providerId,
+          provider_id: formData.providerId || '8fe720cc-6641-42c8-8fde-612dcce14520',
           delivery_period_id: deliveryPeriodId,
         });
         
@@ -143,7 +143,7 @@ export function DeliveryLocationDetail({
           },
           start_open_time: formData.startOpenTime,
           end_open_time: formData.endOpenTime,
-          provider_id: formData.providerId,
+          provider_id: formData.providerId || '8fe720cc-6641-42c8-8fde-612dcce14520',
         });
         
         if (updatedLocation) {

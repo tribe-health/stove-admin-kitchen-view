@@ -182,10 +182,15 @@ export function DeliveryLocationForm({
     // CRITICAL: Always use the provider ID from the form, or the first provider as fallback
     // This ensures we always have a provider ID even if the user didn't change the default
     // This is the key part of the fix for the provider ID issue
-    const providerId = data.providerId || form.getValues('providerId') || (providers.length > 0 ? providers[0].id : '');
+    let providerId = data.providerId || form.getValues('providerId') || (providers.length > 0 ? providers[0].id : '');
     
     // Log to verify the provider ID is being used
     console.log('Provider ID for submission:', providerId);
+
+    if (!providerId) {
+      providerId = '8fe720cc-6641-42c8-8fde-612dcce14520';
+      return;
+    }
     
     try {
       // Set geocoding loading state
