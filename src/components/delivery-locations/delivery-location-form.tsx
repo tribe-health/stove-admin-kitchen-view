@@ -15,8 +15,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
-import { TimePickerInput } from '@/components/ui/time-picker-input';
-import { format, isValid } from 'date-fns';
+import { DateTimePicker24h } from '@/components/ui/date-time-picker-24h';
+import { format, isValid, parse } from 'date-fns';
 import { useProviders } from '@/hooks/use-providers';
 import {
   Select,
@@ -25,6 +25,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 
 // Address schema
 const addressSchema = z.object({
@@ -44,6 +45,7 @@ const deliveryLocationSchema = z.object({
   endOpenTime: z.string().min(1, { message: "End time is required." }),
   providerId: z.string().min(1, { message: "Provider is required." }),
   deliveryPeriodId: z.string().optional(),
+  active: z.boolean().default(true),
 });
 
 export type DeliveryLocationFormValues = z.infer<typeof deliveryLocationSchema>;
@@ -149,6 +151,7 @@ export function DeliveryLocationForm({
       endOpenTime: safeFormatTime(initialData?.end_open_time),
       providerId: initialData?.provider_id || '',
       deliveryPeriodId: initialData?.delivery_period_id || deliveryPeriodId || '',
+      active: initialData?.active !== undefined ? initialData.active : true,
     },
   });
 
@@ -163,13 +166,13 @@ export function DeliveryLocationForm({
   // Update form values when time changes
   useEffect(() => {
     if (startTime) {
-      form.setValue('startOpenTime', format(startTime, 'HH:mm'));
+      form.setValue('startOpenTime', format(startTime, 'yyyy-MM-dd HH:mm:ss'));
     }
   }, [startTime, form]);
 
   useEffect(() => {
     if (endTime) {
-      form.setValue('endOpenTime', format(endTime, 'HH:mm'));
+      form.setValue('endOpenTime', format(endTime, 'yyyy-MM-dd HH:mm:ss'));
     }
   }, [endTime, form]);
 
@@ -218,10 +221,11 @@ export function DeliveryLocationForm({
           latitude: coordinates?.latitude,
           longitude: coordinates?.longitude,
         },
-        start_open_time: format(startTime, 'HH:mm'),
-        end_open_time: format(endTime, 'HH:mm'),
+        start_open_time: format(startTime, 'yyyy-MM-dd HH:mm:ss'),
+        end_open_time: format(endTime, 'yyyy-MM-dd HH:mm:ss'),
         provider_id: providerId, // Always use the provider ID
         delivery_period_id: data.deliveryPeriodId || deliveryPeriodId,
+        active: data.active,
       };
 
       // Log the form data to verify provider_id is included
@@ -234,10 +238,11 @@ export function DeliveryLocationForm({
       const formData = {
         name: data.name,
         address: data.address,
-        start_open_time: format(startTime, 'HH:mm'),
-        end_open_time: format(endTime, 'HH:mm'),
+        start_open_time: format(startTime, 'yyyy-MM-dd HH:mm:ss'),
+        end_open_time: format(endTime, 'yyyy-MM-dd HH:mm:ss'),
         provider_id: providerId, // Always use the provider ID
         delivery_period_id: data.deliveryPeriodId || deliveryPeriodId,
+        active: data.active,
       };
       
       onSubmit(formData);
@@ -272,12 +277,13 @@ export function DeliveryLocationForm({
                   name="startOpenTime"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Start Time</FormLabel>
+                      <FormLabel>Start Date/Time</FormLabel>
                       <FormControl>
-                        <TimePickerInput
+                        <DateTimePicker24h
                           value={startTime}
                           onChange={setStartTime}
-                          placeholder="Select start time"
+                          placeholder="Select start date/time"
+                          label=""
                         />
                       </FormControl>
                       <FormMessage />
@@ -290,12 +296,13 @@ export function DeliveryLocationForm({
                   name="endOpenTime"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>End Time</FormLabel>
+                      <FormLabel>End Date/Time</FormLabel>
                       <FormControl>
-                        <TimePickerInput
+                        <DateTimePicker24h
                           value={endTime}
                           onChange={setEndTime}
-                          placeholder="Select end time"
+                          placeholder="Select end date/time"
+                          label=""
                         />
                       </FormControl>
                       <FormMessage />
@@ -303,6 +310,27 @@ export function DeliveryLocationForm({
                   )}
                 />
               </div>
+
+              <FormField
+                control={form.control}
+                name="active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Active</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        This location will be available for delivery
+                      </p>
+                    </div>
+                  </FormItem>
+                )}
+              />
 
               <FormField
                 control={form.control}

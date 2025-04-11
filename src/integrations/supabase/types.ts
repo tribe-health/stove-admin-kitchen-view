@@ -50,6 +50,7 @@ export type Database = {
       }
       delivery_location: {
         Row: {
+          active: boolean
           address_id: string
           created_at: string
           delivery_period_id: string | null
@@ -60,6 +61,7 @@ export type Database = {
           start_open_time: string | null
         }
         Insert: {
+          active?: boolean
           address_id: string
           created_at?: string
           delivery_period_id?: string | null
@@ -70,6 +72,7 @@ export type Database = {
           start_open_time?: string | null
         }
         Update: {
+          active?: boolean
           address_id?: string
           created_at?: string
           delivery_period_id?: string | null

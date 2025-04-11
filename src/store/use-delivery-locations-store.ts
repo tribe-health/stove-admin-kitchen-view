@@ -23,6 +23,7 @@ export interface DeliveryLocation {
   provider_id: string; // Added provider_id as required field
   delivery_period_id?: string;
   sites?: Site[];
+  active: boolean; // Added active property
 }
 
 interface DeliveryLocationsState {
@@ -285,6 +286,7 @@ export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, ge
           end_open_time: location.end_open_time?.toString(),
           provider_id: location.provider_id || '8fe720cc-6641-42c8-8fde-612dcce14520',
           delivery_period_id: location.delivery_period_id || get().selectedDeliveryPeriod?.id,
+          active: location.active !== undefined ? location.active : true, // Default to true if not provided
         }
         
         // Insert a single location, not an array
@@ -390,6 +392,7 @@ export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, ge
         if (location.end_open_time) locationToUpdate.end_open_time = location.end_open_time.toString();
         if (location.provider_id) locationToUpdate.provider_id = location.provider_id;
         if (location.delivery_period_id) locationToUpdate.delivery_period_id = location.delivery_period_id;
+        if (location.active !== undefined) locationToUpdate.active = location.active;
 
         const { data, error } = await supabase
           .from('delivery_location')
