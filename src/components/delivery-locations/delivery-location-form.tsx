@@ -220,13 +220,13 @@ export function DeliveryLocationForm({
           latitude: coordinates?.latitude,
           longitude: coordinates?.longitude,
         },
-        start_open_time: format(startTime, 'yyyy-MM-dd HH:mm:ss'),
-        end_open_time: format(endTime, 'yyyy-MM-dd HH:mm:ss'),
-        provider_id: providerId, // Always use the provider ID
+        startOpenTime: format(startTime, 'yyyy-MM-dd HH:mm:ss'),
+        endOpenTime: format(endTime, 'yyyy-MM-dd HH:mm:ss'),
+        providerId: providerId, // Always use the provider ID
         active: data.active,
       };
 
-      // Log the form data to verify provider_id is included
+      // Log the form data to verify providerId is included
       console.log('Submitting form data:', formData);
       
       onSubmit(formData);
@@ -236,9 +236,9 @@ export function DeliveryLocationForm({
       const formData = {
         name: data.name,
         address: data.address,
-        start_open_time: format(startTime, 'yyyy-MM-dd HH:mm:ss'),
-        end_open_time: format(endTime, 'yyyy-MM-dd HH:mm:ss'),
-        provider_id: providerId, // Always use the provider ID
+        startOpenTime: format(startTime, 'yyyy-MM-dd HH:mm:ss'),
+        endOpenTime: format(endTime, 'yyyy-MM-dd HH:mm:ss'),
+        providerId: providerId, // Always use the provider ID
         active: data.active,
       };
       
