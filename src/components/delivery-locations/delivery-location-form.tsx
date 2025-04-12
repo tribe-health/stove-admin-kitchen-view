@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { DeliveryLocation, DeliveryPeriod } from '@/store/use-delivery-locations-store';
+import { DeliveryLocation } from '@/store/use-delivery-locations-store';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -15,7 +15,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
-import { DateTimePicker24h } from '@/components/ui/date-time-picker-24h';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { CalendarIcon } from 'lucide-react';
+import { TimePickerDemo } from '@/components/datetime/time-picker-demo';
+import { cn } from '@/lib/utils';
 import { format, isValid, parse } from 'date-fns';
 import { useProviders } from '@/hooks/use-providers';
 import {
@@ -54,8 +58,6 @@ interface DeliveryLocationFormProps {
   onSubmit: (data: DeliveryLocationFormValues) => void;
   initialData?: Partial<DeliveryLocation>;
   isLoading?: boolean;
-  deliveryPeriodId?: string;
-  deliveryPeriods?: DeliveryPeriod[];
   onSelectDeliveryPeriod?: (periodId: string) => void;
 }
 
@@ -63,8 +65,6 @@ export function DeliveryLocationForm({
   onSubmit,
   initialData,
   isLoading = false,
-  deliveryPeriodId,
-  deliveryPeriods,
   onSelectDeliveryPeriod,
 }: DeliveryLocationFormProps) {
   // Helper function to safely format time values
@@ -150,7 +150,6 @@ export function DeliveryLocationForm({
       startOpenTime: safeFormatTime(initialData?.start_open_time),
       endOpenTime: safeFormatTime(initialData?.end_open_time),
       providerId: initialData?.provider_id || '',
-      deliveryPeriodId: initialData?.delivery_period_id || deliveryPeriodId || '',
       active: initialData?.active !== undefined ? initialData.active : true,
     },
   });
@@ -224,7 +223,6 @@ export function DeliveryLocationForm({
         start_open_time: format(startTime, 'yyyy-MM-dd HH:mm:ss'),
         end_open_time: format(endTime, 'yyyy-MM-dd HH:mm:ss'),
         provider_id: providerId, // Always use the provider ID
-        delivery_period_id: data.deliveryPeriodId || deliveryPeriodId,
         active: data.active,
       };
 
@@ -241,7 +239,6 @@ export function DeliveryLocationForm({
         start_open_time: format(startTime, 'yyyy-MM-dd HH:mm:ss'),
         end_open_time: format(endTime, 'yyyy-MM-dd HH:mm:ss'),
         provider_id: providerId, // Always use the provider ID
-        delivery_period_id: data.deliveryPeriodId || deliveryPeriodId,
         active: data.active,
       };
       
@@ -279,12 +276,45 @@ export function DeliveryLocationForm({
                     <FormItem>
                       <FormLabel>Start Date/Time</FormLabel>
                       <FormControl>
-                        <DateTimePicker24h
-                          value={startTime}
-                          onChange={setStartTime}
-                          placeholder="Select start date/time"
-                          label=""
-                        />
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !startTime && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {startTime ? format(startTime, "PPP HH:mm:ss") : <span>Select start date/time</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={startTime}
+                              onSelect={(date) => {
+                                if (!date) return;
+                                if (!startTime) {
+                                  setStartTime(date);
+                                  return;
+                                }
+                                const diff = date.getTime() - startTime.getTime();
+                                const diffInDays = diff / (1000 * 60 * 60 * 24);
+                                const newDateFull = new Date(startTime);
+                                newDateFull.setDate(newDateFull.getDate() + Math.ceil(diffInDays));
+                                setStartTime(newDateFull);
+                              }}
+                              initialFocus
+                            />
+                            <div className="p-3 border-t border-border">
+                              <TimePickerDemo
+                                setDate={setStartTime}
+                                date={startTime}
+                              />
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -298,12 +328,45 @@ export function DeliveryLocationForm({
                     <FormItem>
                       <FormLabel>End Date/Time</FormLabel>
                       <FormControl>
-                        <DateTimePicker24h
-                          value={endTime}
-                          onChange={setEndTime}
-                          placeholder="Select end date/time"
-                          label=""
-                        />
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !endTime && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {endTime ? format(endTime, "PPP HH:mm:ss") : <span>Select end date/time</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar
+                              mode="single"
+                              selected={endTime}
+                              onSelect={(date) => {
+                                if (!date) return;
+                                if (!endTime) {
+                                  setEndTime(date);
+                                  return;
+                                }
+                                const diff = date.getTime() - endTime.getTime();
+                                const diffInDays = diff / (1000 * 60 * 60 * 24);
+                                const newDateFull = new Date(endTime);
+                                newDateFull.setDate(newDateFull.getDate() + Math.ceil(diffInDays));
+                                setEndTime(newDateFull);
+                              }}
+                              initialFocus
+                            />
+                            <div className="p-3 border-t border-border">
+                              <TimePickerDemo
+                                setDate={setEndTime}
+                                date={endTime}
+                              />
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -367,42 +430,6 @@ export function DeliveryLocationForm({
                 )}
               />
 
-              {/* Delivery Period Selection (only shown when multiple periods exist) */}
-              {deliveryPeriods && deliveryPeriods.length > 1 && onSelectDeliveryPeriod && (
-                <FormField
-                  control={form.control}
-                  name="deliveryPeriodId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Delivery Period</FormLabel>
-                      <Select
-                        value={deliveryPeriodId || ''}
-                        onValueChange={(value) => {
-                          if (onSelectDeliveryPeriod) {
-                            onSelectDeliveryPeriod(value);
-                          }
-                          form.setValue('deliveryPeriodId', value);
-                          field.onChange(value);
-                        }}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select delivery period" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {deliveryPeriods.map((period) => (
-                            <SelectItem key={period.id} value={period.id}>
-                              {period.title || `Week of ${safeFormatTime(period.start_date, 'MMM d, yyyy')}`}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
             </div>
           </CardContent>
         </Card>

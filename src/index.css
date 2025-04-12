@@ -95,3 +95,18 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
+
+.rdp-vhidden {
+  @apply hidden;
+}
+
+/* Add to your CSS */
+.rdp-head_row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.rdp-head_cell {
+  width: 36px; /* Match the width of your day cells */
+  text-align: center;
+}

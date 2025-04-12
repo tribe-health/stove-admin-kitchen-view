@@ -1,10 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
-import { DeliveryLocation, DeliveryPeriod } from '@/store/use-delivery-locations-store';
+import { useState } from 'react';
+import { DeliveryLocation } from '@/store/use-delivery-locations-store';
 import { DeliveryLocationForm, DeliveryLocationFormValues } from './delivery-location-form';
-import { DeliveryLocationSites } from './delivery-location-sites';
 import { useDeliveryLocations } from '@/hooks/use-delivery-locations';
-import { useSites } from '@/hooks/use-sites';
-import { Site } from '@/types';
 import {
   Dialog,
   DialogContent,
@@ -38,9 +35,6 @@ interface DeliveryLocationDetailProps {
   onSave: (location: DeliveryLocation) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
   isNew?: boolean;
-  deliveryPeriodId?: string;
-  deliveryPeriods?: DeliveryPeriod[];
-  onSelectDeliveryPeriod?: (periodId: string) => void;
 }
 
 export function DeliveryLocationDetail({
@@ -48,49 +42,16 @@ export function DeliveryLocationDetail({
   onSave,
   onDelete,
   isNew = false,
-  deliveryPeriodId,
-  deliveryPeriods,
-  onSelectDeliveryPeriod,
 }: DeliveryLocationDetailProps) {
   const { 
     updateLocation, 
     addLocation, 
-    isLoading,
-    addSiteToLocation,
-    removeSiteFromLocation,
-    getLocationSites
   } = useDeliveryLocations();
   
   const [isEditing, setIsEditing] = useState(isNew);
   const [isDeleting, setIsDeleting] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
-  const [locationSites, setLocationSites] = useState<Site[]>([]);
-  const [sitesLoading, setSitesLoading] = useState(false);
   const [isFormSubmitting, setIsFormSubmitting] = useState(false);
-
-  const loadSites = useCallback(async () => {
-    if (!location) return;
-    
-    setSitesLoading(true);
-    try {
-      const sites = await getLocationSites(location.id);
-      setLocationSites(sites);
-    } catch (error) {
-      console.error('Error loading sites:', error);
-      toast.error('Failed to load associated sites');
-    } finally {
-      setSitesLoading(false);
-    }
-  }, [location, getLocationSites]);
-
-  useEffect(() => {
-    const fetchSites = async () => {
-      if (location && !isNew) {
-        await loadSites();
-      }
-    };
-    fetchSites();
-  }, [location, isNew, loadSites]);
 
   // Helper function to safely format time values
   const safeFormatTime = (timeString?: string) => {
@@ -120,7 +81,6 @@ export function DeliveryLocationDetail({
           start_open_time: formData.startOpenTime,
           end_open_time: formData.endOpenTime,
           provider_id: formData.providerId || '8fe720cc-6641-42c8-8fde-612dcce14520',
-          delivery_period_id: deliveryPeriodId,
           active: formData.active,
         });
         
@@ -181,28 +141,6 @@ export function DeliveryLocationDetail({
     }
   };
 
-  const handleAddSite = async (siteId: string, locationId: string) => {
-    try {
-      await addSiteToLocation(siteId, locationId);
-      await loadSites();
-      toast.success('Site added to delivery location');
-    } catch (error) {
-      console.error('Error adding site:', error);
-      toast.error('Failed to add site to delivery location');
-    }
-  };
-
-  const handleRemoveSite = async (siteId: string, locationId: string) => {
-    try {
-      await removeSiteFromLocation(siteId, locationId);
-      await loadSites();
-      toast.success('Site removed from delivery location');
-    } catch (error) {
-      console.error('Error removing site:', error);
-      toast.error('Failed to remove site from delivery location');
-    }
-  };
-
   // If we're creating a new location or editing an existing one, show the form
   if (isNew || isEditing) {
     return (
@@ -220,9 +158,6 @@ export function DeliveryLocationDetail({
             onSubmit={handleFormSubmit}
             initialData={location}
             isLoading={isFormSubmitting}
-            deliveryPeriodId={deliveryPeriodId}
-            deliveryPeriods={deliveryPeriods}
-            onSelectDeliveryPeriod={onSelectDeliveryPeriod}
           />
         </CardContent>
         {!isNew && (
@@ -349,23 +284,6 @@ export function DeliveryLocationDetail({
                 </div>
               </div>
             </div>
-          </TabsContent>
-          
-          <TabsContent value="sites">
-            {sitesLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                <span className="ml-2">Loading sites...</span>
-              </div>
-            ) : (
-              <DeliveryLocationSites
-                deliveryLocation={location}
-                onAddSite={handleAddSite}
-                onRemoveSite={handleRemoveSite}
-                associatedSites={locationSites}
-                isLoading={isLoading}
-              />
-            )}
           </TabsContent>
         </Tabs>
       </CardContent>

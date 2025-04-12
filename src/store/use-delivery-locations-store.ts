@@ -2,8 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '@/integrations/supabase/client';
 import { startOfISOWeek, endOfISOWeek, format, add } from 'date-fns';
 import type { Database } from '@/integrations/supabase/types';
-import { Address, DbAddress, Site, DeliveryLocationSite } from '@/types';
-import { PostgrestError } from '@supabase/supabase-js';
+import { Address, DbAddress, Site } from '@/types';
 
 export interface DeliveryPeriod {
   id: string;
@@ -21,16 +20,13 @@ export interface DeliveryLocation {
   start_open_time?: string;
   end_open_time?: string;
   provider_id: string; // Added provider_id as required field
-  delivery_period_id?: string;
   sites?: Site[];
   active: boolean; // Added active property
 }
 
 interface DeliveryLocationsState {
   locations: DeliveryLocation[];
-  deliveryPeriods: DeliveryPeriod[]; // Added deliveryPeriods to match the interface
-  currentDeliveryPeriods: DeliveryPeriod[] | null;
-  selectedDeliveryPeriod: DeliveryPeriod | null;
+  activeLocations: DeliveryLocation[];
   selectedLocationId: string | null; // Added to track the selected location
   isLoading: boolean;
   error: Error | null;
@@ -40,16 +36,10 @@ interface DeliveryLocationsState {
   addLocation: (location: Omit<DeliveryLocation, 'id'>) => Promise<DeliveryLocation | null>;
   updateLocation: (id: string, location: Partial<DeliveryLocation>) => Promise<DeliveryLocation | null>;
   deleteLocation: (id: string) => Promise<void>;
-  addDeliveryPeriod: (period: Omit<DeliveryPeriod, 'id'>) => Promise<DeliveryPeriod | null>;
-  addSiteToLocation: (siteId: string, locationId: string) => Promise<void>;
-  removeSiteFromLocation: (siteId: string, locationId: string) => Promise<void>;
-  getLocationSites: (locationId: string) => Promise<Site[]>;
-  selectDeliveryPeriod: (periodId: string) => void;
   selectLocation: (locationId: string | null) => void;
 }
 
 export type DeliveryLocationInsertInput = Database['public']['Tables']['delivery_location']['Insert'];
-export type DeliveryPeriodInsertInput = Database['public']['Tables']['delivery_period']['Insert'];
 
 export type DbDeliveryLocation = Database['public']['Tables']['delivery_location']['Row'];
 
@@ -104,6 +94,7 @@ export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, ge
 
   return {
     locations: [],
+    activeLocations: [],
     deliveryPeriods: [], // Initialize deliveryPeriods
     currentDeliveryPeriods: [],
     selectedDeliveryPeriod: null,
@@ -122,56 +113,13 @@ export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, ge
         const formattedStartDate = format(currentWeekStart, "yyyy-MM-dd'T'HH:mm:ssxxx");
         const formattedEndDate = format(currentWeekEnd, "yyyy-MM-dd'T'HH:mm:ssxxx");
 
-        // Fetch all current delivery periods
-        const { data: periodsData, error: periodError } = await supabase
-          .from('delivery_period')
-          .select('*')
-          .eq('is_current', true)
-          .order('created_at', { ascending: false });
 
-        if (periodError) {
-          console.error('Error fetching delivery periods:', periodError.message);
-          throw periodError;
-        }
-
-        // If no periods exist, create one
-        if (!periodsData || periodsData.length === 0) {
-          const { data: newPeriod, error: createError } = await supabase
-            .from('delivery_period')
-            .insert({
-              start_date: formattedStartDate,
-              end_date: formattedEndDate,
-              title: `Week of ${format(currentWeekStart, 'MMM d, yyyy')}`,
-              is_current: true
-            })
-            .select()
-            .single();
-
-          if (createError) {
-            console.error('Error creating delivery period:', createError.message);
-            throw createError;
-          }
-
-          // After creating a new period, set it as the only current period
-          set(state => ({
-            ...state,
-            currentDeliveryPeriods: [newPeriod],
-            selectedDeliveryPeriod: newPeriod,
-            deliveryPeriods: [...state.deliveryPeriods, newPeriod],
-            locations: [], // No locations yet for the new period
-            isLoading: false,
-          }));
-        } else {
-          // We have existing periods, fetch all locations for all current periods
-          const periodIds = periodsData.map(period => period.id);
-          
-          const { data: locations, error: locationError } = await supabase
+        const { data: locations, error: locationError } = await supabase
             .from('delivery_location')
             .select(`
               *,
               address(*)
             `)
-            .in('delivery_period_id', periodIds)
             .order('created_at', { ascending: false });
 
           if (locationError) {
@@ -179,41 +127,27 @@ export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, ge
             throw locationError;
           }
 
+          const activeLocations = (locations || []).filter(location => location.active);
+
           const transformedLocations = (locations || []).map(location => ({
             ...location,
             start_open_time: location.start_open_time || null,
             end_open_time: location.end_open_time || null,
           }));
 
-          // Determine which period to select (keep existing selection if valid)
-          const currentSelectedPeriod = get().selectedDeliveryPeriod;
-          const isCurrentSelectionValid = currentSelectedPeriod &&
-            periodsData.some(p => p.id === currentSelectedPeriod.id);
-          
-          const selectedPeriod = isCurrentSelectionValid
-            ? currentSelectedPeriod
-            : periodsData[0];
-
-          // Determine which location to select (keep existing selection if valid)
-          const currentSelectedLocationId = get().selectedLocationId;
-          const isCurrentLocationValid = currentSelectedLocationId &&
-            transformedLocations.some(loc => loc.id === currentSelectedLocationId);
-          
-          const selectedLocationId = isCurrentLocationValid
-            ? currentSelectedLocationId
-            : (transformedLocations.length > 0 ? transformedLocations[0].id : null);
+          const transformedActiveLocations = (activeLocations || []).map(location => ({
+            ...location,
+            start_open_time: location.start_open_time || null,
+            end_open_time: location.end_open_time || null,
+          }));
 
           set(state => ({
             ...state,
-            currentDeliveryPeriods: periodsData,
-            selectedDeliveryPeriod: selectedPeriod,
-            deliveryPeriods: [...state.deliveryPeriods.filter(p =>
-              !periodsData.some(newP => newP.id === p.id)), ...periodsData],
             locations: transformedLocations,
-            selectedLocationId: selectedLocationId,
+            activeLocations: transformedActiveLocations,
             isLoading: false,
           }));
-        }
+
       } catch (error) {
         console.error('Error fetching delivery locations:', error);
         set(state => ({ 
@@ -285,7 +219,6 @@ export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, ge
           start_open_time: location.start_open_time?.toString(),
           end_open_time: location.end_open_time?.toString(),
           provider_id: location.provider_id || '8fe720cc-6641-42c8-8fde-612dcce14520',
-          delivery_period_id: location.delivery_period_id || get().selectedDeliveryPeriod?.id,
           active: location.active !== undefined ? location.active : true, // Default to true if not provided
         }
         
@@ -391,7 +324,6 @@ export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, ge
         if (location.start_open_time) locationToUpdate.start_open_time = location.start_open_time.toString();
         if (location.end_open_time) locationToUpdate.end_open_time = location.end_open_time.toString();
         if (location.provider_id) locationToUpdate.provider_id = location.provider_id;
-        if (location.delivery_period_id) locationToUpdate.delivery_period_id = location.delivery_period_id;
         if (location.active !== undefined) locationToUpdate.active = location.active;
 
         const { data, error } = await supabase
@@ -446,18 +378,6 @@ export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, ge
 
         console.log('Found location with address_id:', location?.address_id);
 
-        // First, delete any site_delivery_location associations
-        console.log('Deleting site_delivery_location associations');
-        const { error: siteLocationError } = await supabase
-          .from('site_delivery_location')
-          .delete()
-          .eq('delivery_location_id', id);
-
-        if (siteLocationError) {
-          console.error('Error deleting site_delivery_location associations:', siteLocationError);
-          // Continue with deletion even if this fails
-        }
-
         // Delete the delivery location
         console.log('Deleting delivery location');
         const { error: deleteError } = await supabase
@@ -498,155 +418,6 @@ export const useDeliveryLocationsStore = create<DeliveryLocationsState>((set, ge
           isLoading: false
         });
         throw error; // Re-throw the error so it can be caught by the component
-      }
-    },
-    
-    addDeliveryPeriod: async (period: Omit<DeliveryPeriod, 'id'>) => {
-      try {
-        set({ isLoading: true, error: null });
-        const periodToInsert: DeliveryPeriodInsertInput = {
-          start_date: period.start_date,
-          end_date: period.end_date,
-          title: period.title,
-          created_at: period.created_at,
-        }
-        const { data, error } = await supabase
-         .from('delivery_period')
-         .insert(periodToInsert)
-         .select()
-         .single();
-
-        if (error) throw new Error(error.message);
-        const periodWithId: DeliveryPeriod = {
-          ...data,
-        };
-        set(state => ({
-          deliveryPeriods: [...state.deliveryPeriods, periodWithId],
-          isLoading: false,
-        }));
-        return periodWithId;
-      } catch (error) {
-        console.error('Error adding delivery period:', error);
-        set({
-          error: error as Error,
-          isLoading: false,
-        });
-        return null;
-      }
-    },
-
-    addSiteToLocation: async (siteId: string, locationId: string) => {
-      try {
-        set({ isLoading: true, error: null });
-
-        const { error } = await supabase
-          .from('site_delivery_location')
-          .insert({
-            site_id: siteId,
-            delivery_location_id: locationId
-          });
-
-        if (error) throw new Error(error.message);
-
-        // Fetch the updated location with sites
-        const sites = await get().getLocationSites(locationId);
-        
-        // Update the location in state with the new sites
-        set(state => ({
-          locations: state.locations.map(loc => 
-            loc.id === locationId ? { ...loc, sites } : loc
-          ),
-          isLoading: false
-        }));
-      } catch (error) {
-        console.error('Error adding site to delivery location:', error);
-        set({
-          error: error as Error,
-          isLoading: false
-        });
-      }
-    },
-
-    removeSiteFromLocation: async (siteId: string, locationId: string) => {
-      try {
-        set({ isLoading: true, error: null });
-
-        const { error } = await supabase
-          .from('site_delivery_location')
-          .delete()
-          .match({
-            site_id: siteId,
-            delivery_location_id: locationId
-          });
-
-        if (error) throw new Error(error.message);
-
-        // Fetch the updated location with sites
-        const sites = await get().getLocationSites(locationId);
-        
-        // Update the location in state with the new sites
-        set(state => ({
-          locations: state.locations.map(loc => 
-            loc.id === locationId ? { ...loc, sites } : loc
-          ),
-          isLoading: false
-        }));
-      } catch (error) {
-        console.error('Error removing site from delivery location:', error);
-        set({
-          error: error as Error,
-          isLoading: false
-        });
-      }
-    },
-
-    getLocationSites: async (locationId: string) => {
-      try {
-        const { data, error } = await supabase
-          .from('site_delivery_location')
-          .select(`
-            site_id,
-            site:site_id(
-              *,
-              site_type(*),
-              address(*)
-            )
-          `)
-          .eq('delivery_location_id', locationId);
-
-        if (error) throw new Error(error.message);
-
-        // Extract the sites from the response
-        const sites = data.map(item => item.site) as Site[];
-        return sites;
-      } catch (error) {
-        console.error('Error fetching location sites:', error);
-        return [];
-      }
-    },
-
-    selectDeliveryPeriod: (periodId: string) => {
-      // First try to find the period in currentDeliveryPeriods, then fall back to all deliveryPeriods
-      const period =
-        (get().currentDeliveryPeriods || []).find(period => period.id === periodId) ||
-        get().deliveryPeriods.find(period => period.id === periodId) ||
-        null;
-      
-      set({ selectedDeliveryPeriod: period });
-      
-      // Reset selected location when changing periods
-      if (period) {
-        // Find a location for this period
-        const locationsForPeriod = get().locations.filter(loc =>
-          loc.delivery_period_id === period.id
-        );
-        
-        // If there are locations for this period, select the first one
-        if (locationsForPeriod.length > 0) {
-          set({ selectedLocationId: locationsForPeriod[0].id });
-        } else {
-          set({ selectedLocationId: null });
-        }
       }
     },
     

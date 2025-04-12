@@ -1,3 +1,7 @@
 .product-image-preview {
   max-width: 300px;
 } 
+
+.rdp-vhidden {
+  @apply hidden;
+}

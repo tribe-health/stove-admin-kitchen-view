@@ -53,34 +53,31 @@ export type Database = {
           active: boolean
           address_id: string
           created_at: string
-          delivery_period_id: string | null
-          end_open_time: string | null
+          end_open_time: string
           id: string
           name: string
           provider_id: string
-          start_open_time: string | null
+          start_open_time: string
         }
         Insert: {
           active?: boolean
           address_id: string
           created_at?: string
-          delivery_period_id?: string | null
-          end_open_time?: string | null
+          end_open_time: string
           id?: string
           name: string
           provider_id: string
-          start_open_time?: string | null
+          start_open_time: string
         }
         Update: {
           active?: boolean
           address_id?: string
           created_at?: string
-          delivery_period_id?: string | null
-          end_open_time?: string | null
+          end_open_time?: string
           id?: string
           name?: string
           provider_id?: string
-          start_open_time?: string | null
+          start_open_time?: string
         }
         Relationships: [
           {
@@ -91,13 +88,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "delivery_location_delivery_period_id_fkey"
-            columns: ["delivery_period_id"]
-            isOneToOne: false
-            referencedRelation: "delivery_period"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "delivery_location_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: false
@@ -105,33 +95,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      delivery_period: {
-        Row: {
-          created_at: string
-          end_date: string
-          id: string
-          is_current: boolean
-          start_date: string
-          title: string | null
-        }
-        Insert: {
-          created_at?: string
-          end_date: string
-          id?: string
-          is_current?: boolean
-          start_date: string
-          title?: string | null
-        }
-        Update: {
-          created_at?: string
-          end_date?: string
-          id?: string
-          is_current?: boolean
-          start_date?: string
-          title?: string | null
-        }
-        Relationships: []
       }
       navigation: {
         Row: {
@@ -999,42 +962,6 @@ export type Database = {
             columns: ["site_type_id"]
             isOneToOne: false
             referencedRelation: "site_type"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      site_delivery_location: {
-        Row: {
-          created_at: string
-          delivery_location_id: string
-          id: string
-          site_id: string
-        }
-        Insert: {
-          created_at?: string
-          delivery_location_id: string
-          id?: string
-          site_id: string
-        }
-        Update: {
-          created_at?: string
-          delivery_location_id?: string
-          id?: string
-          site_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "site_delivery_location_delivery_location_id_fkey"
-            columns: ["delivery_location_id"]
-            isOneToOne: false
-            referencedRelation: "delivery_location"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "site_delivery_location_site_id_fkey"
-            columns: ["site_id"]
-            isOneToOne: false
-            referencedRelation: "site"
             referencedColumns: ["id"]
           },
         ]

@@ -123,7 +123,7 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
             start_open_time: order.delivery_location.start_open_time,
             end_open_time: order.delivery_location.end_open_time,
             provider_id: order.delivery_location.provider_id,
-            delivery_period_id: order.delivery_location.delivery_period_id,
+            active: order.delivery_location.active,
             address: {
               id: order.delivery_location.address.id,
               name: order.delivery_location.address.name,
@@ -213,7 +213,7 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
           start_open_time: dbOrder.delivery_location.start_open_time,
           end_open_time: dbOrder.delivery_location.end_open_time,
           provider_id: dbOrder.delivery_location.provider_id,
-          delivery_period_id: dbOrder.delivery_location.delivery_period_id,
+          active: dbOrder.delivery_location.active,
           address: {
             id: dbOrder.delivery_location.address.id,
             name: dbOrder.delivery_location.address.name,
@@ -319,7 +319,7 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
           start_open_time: dbOrder.delivery_location.start_open_time,
           end_open_time: dbOrder.delivery_location.end_open_time,
           provider_id: dbOrder.delivery_location.provider_id,
-          delivery_period_id: dbOrder.delivery_location.delivery_period_id,
+          active: dbOrder.delivery_location.active,
           address: {
             id: dbOrder.delivery_location.address.id,
             name: dbOrder.delivery_location.address.name,
@@ -417,7 +417,7 @@ export const useOrderStore = create<OrderStoreState>((set, get) => ({
           start_open_time: dbOrder.delivery_location.start_open_time,
           end_open_time: dbOrder.delivery_location.end_open_time,
           provider_id: dbOrder.delivery_location.provider_id,
-          delivery_period_id: dbOrder.delivery_location.delivery_period_id,
+          active: dbOrder.delivery_location.active,
           address: {
             id: dbOrder.delivery_location.address.id,
             name: dbOrder.delivery_location.address.name,
